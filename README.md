@@ -86,16 +86,16 @@
 
 Una **base de datos relacional** es un sistema que guarda datos en tablas y **hace cumplir** las reglas que los relacionan. No es un depósito de bytes: es un motor que impone tipos, restricciones y transacciones, y que responde consultas sin que tengas que traer todo a la memoria del proceso.
 
-El modelo se llama *relacional* porque los datos viven en **relaciones** (tablas) y los vínculos entre ellos se expresan con **claves**, no con punteros ni con objetos anidados. Una fila no "contiene" a otra: la referencia por su clave.
+El modelo se llama _relacional_ porque los datos viven en **relaciones** (tablas) y los vínculos entre ellos se expresan con **claves**, no con punteros ni con objetos anidados. Una fila no "contiene" a otra: la referencia por su clave.
 
 Eso da cuatro garantías que un archivo de texto o una variable no pueden dar:
 
-| Garantía | Quién la hace cumplir | Con qué |
-|---|---|---|
-| **Persistencia** | El motor escribe en disco de forma transaccional | Los datos sobreviven al proceso |
-| **Integridad** | El motor rechaza lo inválido | Tipos, `NOT NULL`, `UNIQUE`, `FOREIGN KEY`, `CHECK` |
-| **Concurrencia** | El motor coordina accesos simultáneos | Transacciones, aislamiento, bloqueos |
-| **Consultas** | El motor busca por índices | `SELECT`, `WHERE`, `JOIN`, `ORDER BY` |
+| Garantía         | Quién la hace cumplir                            | Con qué                                             |
+| ---------------- | ------------------------------------------------ | --------------------------------------------------- |
+| **Persistencia** | El motor escribe en disco de forma transaccional | Los datos sobreviven al proceso                     |
+| **Integridad**   | El motor rechaza lo inválido                     | Tipos, `NOT NULL`, `UNIQUE`, `FOREIGN KEY`, `CHECK` |
+| **Concurrencia** | El motor coordina accesos simultáneos            | Transacciones, aislamiento, bloqueos                |
+| **Consultas**    | El motor busca por índices                       | `SELECT`, `WHERE`, `JOIN`, `ORDER BY`               |
 
 La consecuencia práctica: las reglas dejan de depender de que "el código se acuerde". Si dos clientes intentan registrar el mismo email al mismo tiempo, la base rechaza el segundo aunque el controller tenga un bug. Esa es la diferencia entre guardar datos y **administrarlos**.
 
@@ -106,14 +106,14 @@ La consecuencia práctica: las reglas dejan de depender de que "el código se ac
 
 El modelo relacional organiza todo en tablas, y una tabla es una grilla con tres propiedades:
 
-| Concepto | Nombre formal | Ejemplo |
-|---|---|---|
-| Estructura | tabla / relación | `users` |
-| Registro | fila / tupla | `1 · John Doe · john.doe@example.com` |
-| Atributo | columna / campo | `email` |
-| Tipo | dominio | `VARCHAR(255)` |
-| Valor de una celda | dato | `"john.doe@example.com"` |
-| Conjunto de tablas | esquema | `public` |
+| Concepto           | Nombre formal    | Ejemplo                               |
+| ------------------ | ---------------- | ------------------------------------- |
+| Estructura         | tabla / relación | `users`                               |
+| Registro           | fila / tupla     | `1 · John Doe · john.doe@example.com` |
+| Atributo           | columna / campo  | `email`                               |
+| Tipo               | dominio          | `VARCHAR(255)`                        |
+| Valor de una celda | dato             | `"john.doe@example.com"`              |
+| Conjunto de tablas | esquema          | `public`                              |
 
 La tabla `users` de esta clase:
 
@@ -132,19 +132,19 @@ Cada columna declara un **tipo**, y el motor rechaza lo que no encaja. Si `id` e
 
 Toda tabla necesita una forma de identificar una fila sin ambigüedad.
 
-| Clave | Qué es | Ejemplo |
-|---|---|---|
-| **Primary key (PK)** | Identifica una fila dentro de su tabla. Única, no nula, inmutable. | `users.id` |
-| **Foreign key (FK)** | Columna que referencia la PK de otra tabla. | `posts.user_id → users.id` |
-| **Unique key** | Valor único, pero puede cambiar. | `users.email` |
+| Clave                | Qué es                                                             | Ejemplo                    |
+| -------------------- | ------------------------------------------------------------------ | -------------------------- |
+| **Primary key (PK)** | Identifica una fila dentro de su tabla. Única, no nula, inmutable. | `users.id`                 |
+| **Foreign key (FK)** | Columna que referencia la PK de otra tabla.                        | `posts.user_id → users.id` |
+| **Unique key**       | Valor único, pero puede cambiar.                                   | `users.email`              |
 
 Las relaciones se leen desde la FK, no desde "una propiedad del objeto":
 
-| Relación | Cómo se modela | Ejemplo |
-|---|---|---|
-| 1 : 1 | FK con `UNIQUE` en un lado | `users` ↔ `profiles.user_id UNIQUE` |
-| 1 : N | FK en el lado "muchos" | `users` 1 → N `posts.user_id` |
-| N : M | Tabla intermedia con dos FK | `students` ↔ `enrollments` ↔ `courses` |
+| Relación | Cómo se modela              | Ejemplo                                |
+| -------- | --------------------------- | -------------------------------------- |
+| 1 : 1    | FK con `UNIQUE` en un lado  | `users` ↔ `profiles.user_id UNIQUE`    |
+| 1 : N    | FK en el lado "muchos"      | `users` 1 → N `posts.user_id`          |
+| N : M    | Tabla intermedia con dos FK | `students` ↔ `enrollments` ↔ `courses` |
 
 ```sql
 CREATE TABLE posts (
@@ -163,14 +163,14 @@ CREATE TABLE posts (
 
 Las restricciones son reglas que viven en la base y se cumplen siempre, sin importar qué código las toque.
 
-| Restricción | Garantiza | Ejemplo |
-|---|---|---|
-| `NOT NULL` | La columna no acepta `NULL` | `name VARCHAR(120) NOT NULL` |
-| `UNIQUE` | No hay dos filas con el mismo valor | `email VARCHAR(255) UNIQUE` |
-| `PRIMARY KEY` | `UNIQUE` + `NOT NULL` | `id INTEGER PRIMARY KEY` |
-| `DEFAULT` | Valor cuando no se envía | `created_at DEFAULT now()` |
-| `CHECK` | Condición booleana | `CHECK (length(name) >= 2)` |
-| `FOREIGN KEY` | El valor existe en la otra tabla | `REFERENCES users(id)` |
+| Restricción   | Garantiza                           | Ejemplo                      |
+| ------------- | ----------------------------------- | ---------------------------- |
+| `NOT NULL`    | La columna no acepta `NULL`         | `name VARCHAR(120) NOT NULL` |
+| `UNIQUE`      | No hay dos filas con el mismo valor | `email VARCHAR(255) UNIQUE`  |
+| `PRIMARY KEY` | `UNIQUE` + `NOT NULL`               | `id INTEGER PRIMARY KEY`     |
+| `DEFAULT`     | Valor cuando no se envía            | `created_at DEFAULT now()`   |
+| `CHECK`       | Condición booleana                  | `CHECK (length(name) >= 2)`  |
+| `FOREIGN KEY` | El valor existe en la otra tabla    | `REFERENCES users(id)`       |
 
 ```sql
 CREATE TABLE users (
@@ -191,11 +191,11 @@ La **integridad** es que los datos no se contradigan entre sí. Una parte la pon
 
 La **normalización** es el conjunto de reglas para no duplicar información. En la práctica, para este curso, alcanza con tres ideas:
 
-| Forma | Pregunta que responde | Ejemplo de violación |
-|---|---|---|
-| 1NF | ¿Cada celda tiene un solo valor atómico? | `emails = "a@x.com, b@x.com"` |
-| 2NF | ¿Cada columna depende de la PK completa? | En `enrollments(student_id, course_id, student_name)` el nombre depende solo de `student_id` |
-| 3NF | ¿Cada columna depende solo de la PK y no de otra columna no clave? | `users(city, zip_code)` donde el zip determina la ciudad |
+| Forma | Pregunta que responde                                              | Ejemplo de violación                                                                         |
+| ----- | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------- |
+| 1NF   | ¿Cada celda tiene un solo valor atómico?                           | `emails = "a@x.com, b@x.com"`                                                                |
+| 2NF   | ¿Cada columna depende de la PK completa?                           | En `enrollments(student_id, course_id, student_name)` el nombre depende solo de `student_id` |
+| 3NF   | ¿Cada columna depende solo de la PK y no de otra columna no clave? | `users(city, zip_code)` donde el zip determina la ciudad                                     |
 
 No normalices por deporte. Normalizá cuando un dato repetido pueda quedar desincronizado:
 
@@ -210,12 +210,12 @@ Si mañana Jane cambia su email, en el primer diseño hay que actualizar todos s
 
 Una **transacción** agrupa varias operaciones: o se aplican todas, o ninguna.
 
-| Propiedad | Significado | Ejemplo |
-|---|---|---|
-| **A**tomicidad | Todo o nada | Transferir plata: no puede debitarse sin acreditarse |
-| **C**onsistencia | Se respetan las reglas | No queda una FK rota |
-| **I**solation | Las transacciones no se pisan | Dos compras simultáneas no venden el mismo último stock |
-| **D**urabilidad | Lo confirmado sobrevive | Si responde `COMMIT`, quedó en disco |
+| Propiedad        | Significado                   | Ejemplo                                                 |
+| ---------------- | ----------------------------- | ------------------------------------------------------- |
+| **A**tomicidad   | Todo o nada                   | Transferir plata: no puede debitarse sin acreditarse    |
+| **C**onsistencia | Se respetan las reglas        | No queda una FK rota                                    |
+| **I**solation    | Las transacciones no se pisan | Dos compras simultáneas no venden el mismo último stock |
+| **D**urabilidad  | Lo confirmado sobrevive       | Si responde `COMMIT`, quedó en disco                    |
 
 ```sql
 BEGIN;
@@ -228,12 +228,12 @@ Si algo falla entre las dos sentencias, `ROLLBACK` deja la base como estaba. Ese
 
 ### 1.7 Por qué PostgreSQL
 
-| Motor | Cuándo conviene |
-|---|---|
-| **PostgreSQL** | Relacional serio, tipos ricos, JSON, `ILIKE`, transacciones robustas, gratis y estándar de la industria |
-| MySQL / MariaDB | Muy popular en hosting compartido, ecosistema enorme |
-| SQLite | Un archivo, cero servidor. Ideal para tests y prototipos locales |
-| MongoDB | Documental, no relacional. Otro modelo mental, otro conjunto de problemas |
+| Motor           | Cuándo conviene                                                                                         |
+| --------------- | ------------------------------------------------------------------------------------------------------- |
+| **PostgreSQL**  | Relacional serio, tipos ricos, JSON, `ILIKE`, transacciones robustas, gratis y estándar de la industria |
+| MySQL / MariaDB | Muy popular en hosting compartido, ecosistema enorme                                                    |
+| SQLite          | Un archivo, cero servidor. Ideal para tests y prototipos locales                                        |
+| MongoDB         | Documental, no relacional. Otro modelo mental, otro conjunto de problemas                               |
 
 Usamos PostgreSQL porque es el que vas a encontrar en la mayoría de los equipos backend, porque el SQL que aprendas acá es estándar, y porque Sequelize lo soporta con `pg`.
 
@@ -248,13 +248,13 @@ Usamos PostgreSQL porque es el que vas a encontrar en la mayoría de los equipos
 
 ### 2.1 Los cinco grupos
 
-| Grupo | Instrucciones | Para qué |
-|---|---|---|
+| Grupo   | Instrucciones                         | Para qué              |
+| ------- | ------------------------------------- | --------------------- |
 | **DDL** | `CREATE`, `ALTER`, `DROP`, `TRUNCATE` | Cambiar la estructura |
-| **DML** | `INSERT`, `UPDATE`, `DELETE` | Cambiar los datos |
-| **DQL** | `SELECT` | Consultar |
-| **TCL** | `BEGIN`, `COMMIT`, `ROLLBACK` | Agrupar operaciones |
-| **DCL** | `GRANT`, `REVOKE` | Permisos |
+| **DML** | `INSERT`, `UPDATE`, `DELETE`          | Cambiar los datos     |
+| **DQL** | `SELECT`                              | Consultar             |
+| **TCL** | `BEGIN`, `COMMIT`, `ROLLBACK`         | Agrupar operaciones   |
+| **DCL** | `GRANT`, `REVOKE`                     | Permisos              |
 
 SQL no distingue mayúsculas en las palabras clave (`select` y `SELECT` son lo mismo). Por convención se escriben en mayúsculas para separarlas de los identificadores.
 
@@ -286,11 +286,11 @@ DROP TABLE users;
 TRUNCATE TABLE users RESTART IDENTITY;
 ```
 
-| Instrucción | Borra datos | Se puede deshacer con `ROLLBACK` | Reinicia el id |
-|---|---|---|---|
-| `DELETE FROM users` | Sí, fila por fila | Sí | No |
-| `TRUNCATE TABLE users` | Sí, rápido | Sí (en PostgreSQL) | Con `RESTART IDENTITY` |
-| `DROP TABLE users` | Sí, y la tabla | Sí | N/A |
+| Instrucción            | Borra datos       | Se puede deshacer con `ROLLBACK` | Reinicia el id         |
+| ---------------------- | ----------------- | -------------------------------- | ---------------------- |
+| `DELETE FROM users`    | Sí, fila por fila | Sí                               | No                     |
+| `TRUNCATE TABLE users` | Sí, rápido        | Sí (en PostgreSQL)               | Con `RESTART IDENTITY` |
+| `DROP TABLE users`     | Sí, y la tabla    | Sí                               | N/A                    |
 
 > [!WARNING]
 > `DROP TABLE` y `TRUNCATE` no son cosas que se prueban "a ver qué pasa" en la base de un compañero. Son irreversibles fuera de una transacción.
@@ -356,10 +356,10 @@ SELECT DISTINCT name FROM users;
 SELECT name AS full_name FROM users;
 ```
 
-| Comodín | Significado |
-|---|---|
-| `%` | Cualquier cantidad de caracteres |
-| `_` | Exactamente un carácter |
+| Comodín | Significado                      |
+| ------- | -------------------------------- |
+| `%`     | Cualquier cantidad de caracteres |
+| `_`     | Exactamente un carácter          |
 
 `'%ada%'` encuentra `Ada`, `AdaLovelace` y `Lady Ada`. `'ada%'` solo las que empiezan con `ada`.
 
@@ -384,12 +384,12 @@ FROM posts
 LEFT JOIN users ON users.id = posts.user_id;
 ```
 
-| JOIN | Devuelve |
-|---|---|
-| `INNER JOIN` | Solo las filas que coinciden en ambas tablas |
-| `LEFT JOIN` | Todas las de la izquierda; `NULL` donde no hay coincidencia |
-| `RIGHT JOIN` | Todas las de la derecha |
-| `FULL OUTER JOIN` | Todas las de ambas |
+| JOIN              | Devuelve                                                    |
+| ----------------- | ----------------------------------------------------------- |
+| `INNER JOIN`      | Solo las filas que coinciden en ambas tablas                |
+| `LEFT JOIN`       | Todas las de la izquierda; `NULL` donde no hay coincidencia |
+| `RIGHT JOIN`      | Todas las de la derecha                                     |
+| `FULL OUTER JOIN` | Todas las de ambas                                          |
 
 > [!NOTE]
 > Si un usuario no tiene posts, `INNER JOIN` lo hace desaparecer del resultado. Eso sorprende y genera bugs. Si la pregunta es "todos los usuarios y sus posts", es `LEFT JOIN`.
@@ -408,13 +408,13 @@ HAVING COUNT(*) > 2
 ORDER BY total_posts DESC;
 ```
 
-| Función | Devuelve |
-|---|---|
-| `COUNT(*)` | Cantidad de filas |
+| Función          | Devuelve                            |
+| ---------------- | ----------------------------------- |
+| `COUNT(*)`       | Cantidad de filas                   |
 | `COUNT(columna)` | Cantidad de filas con valor no nulo |
-| `SUM(columna)` | Suma |
-| `AVG(columna)` | Promedio |
-| `MIN` / `MAX` | Mínimo / máximo |
+| `SUM(columna)`   | Suma                                |
+| `AVG(columna)`   | Promedio                            |
+| `MIN` / `MAX`    | Mínimo / máximo                     |
 
 `WHERE` filtra filas **antes** de agrupar. `HAVING` filtra grupos **después** de agrupar.
 
@@ -428,12 +428,12 @@ CREATE UNIQUE INDEX users_email_idx ON users (email);
 CREATE INDEX users_email_lower_idx ON users (lower(email));
 ```
 
-| Regla | Detalle |
-|---|---|
-| `PRIMARY KEY` y `UNIQUE` | Ya crean su índice |
-| Indexá lo que filtrás | Columnas usadas en `WHERE`, `JOIN` y `ORDER BY` |
-| No indexes todo | Cada índice se actualiza en cada `INSERT` |
-| El índice tiene que coincidir con la consulta | `lower(email)` no usa el índice de `email` |
+| Regla                                         | Detalle                                         |
+| --------------------------------------------- | ----------------------------------------------- |
+| `PRIMARY KEY` y `UNIQUE`                      | Ya crean su índice                              |
+| Indexá lo que filtrás                         | Columnas usadas en `WHERE`, `JOIN` y `ORDER BY` |
+| No indexes todo                               | Cada índice se actualiza en cada `INSERT`       |
+| El índice tiene que coincidir con la consulta | `lower(email)` no usa el índice de `email`      |
 
 `EXPLAIN ANALYZE` es la herramienta para saber si el motor usa un índice o recorre la tabla entera. Se escribe delante de cualquier `SELECT`: no devuelve filas, devuelve el **plan de ejecución** con los tiempos reales de cada paso.
 
@@ -459,16 +459,16 @@ En Node, Sequelize expone lo mismo con `sequelize.transaction()`.
 
 ### 2.9 Trampas clásicas
 
-| Trampa | Qué pasa | Cómo se evita |
-|---|---|---|
-| `UPDATE` sin `WHERE` | Actualiza todas las filas | Escribir el `WHERE` antes que el `SET` |
-| `DELETE` sin `WHERE` | Borra toda la tabla | Idem, o usar `TRUNCATE` a propósito |
-| `= NULL` | Nunca devuelve filas | `IS NULL` |
-| `LIKE` con mayúsculas | `%ada%` no encuentra `Ada` | `ILIKE` en PostgreSQL |
-| Guardar fechas como texto | Comparaciones y zonas horarias rotas | `TIMESTAMPTZ` |
-| Guardar listas en una columna | No se puede indexar ni filtrar bien | Otra tabla |
-| Confiar en el orden sin `ORDER BY` | El motor devuelve cualquier orden | `ORDER BY` explícito |
-| Comparar `COUNT(*)` con `COUNT(col)` | Diferentes por los `NULL` | Saber cuál querés |
+| Trampa                               | Qué pasa                             | Cómo se evita                          |
+| ------------------------------------ | ------------------------------------ | -------------------------------------- |
+| `UPDATE` sin `WHERE`                 | Actualiza todas las filas            | Escribir el `WHERE` antes que el `SET` |
+| `DELETE` sin `WHERE`                 | Borra toda la tabla                  | Idem, o usar `TRUNCATE` a propósito    |
+| `= NULL`                             | Nunca devuelve filas                 | `IS NULL`                              |
+| `LIKE` con mayúsculas                | `%ada%` no encuentra `Ada`           | `ILIKE` en PostgreSQL                  |
+| Guardar fechas como texto            | Comparaciones y zonas horarias rotas | `TIMESTAMPTZ`                          |
+| Guardar listas en una columna        | No se puede indexar ni filtrar bien  | Otra tabla                             |
+| Confiar en el orden sin `ORDER BY`   | El motor devuelve cualquier orden    | `ORDER BY` explícito                   |
+| Comparar `COUNT(*)` con `COUNT(col)` | Diferentes por los `NULL`            | Saber cuál querés                      |
 
 <sub>[⬆ Volver al índice](#contenido)</sub>
 
@@ -482,13 +482,13 @@ Una base de datos no es un archivo que se abre: es un proceso que escucha en un 
 
 Docker separa ese proceso de tu máquina en tres piezas: la **imagen** trae el motor y su configuración inicial, el **contenedor** es el proceso aislado que corre, y el **volumen** es donde vive el dato, fuera del contenedor. Esa separación es lo que permite borrar y recrear el motor sin perder la base.
 
-| Problema real | Cómo lo resuelve Docker |
-|---|---|
-| La versión depende de lo que instaló cada uno | Queda fijada en el `docker-compose.yaml`: `postgres:16.15` |
-| Reinstalar deja restos (servicios, usuarios, carpetas) | `docker compose down -v` y no queda nada |
-| Estado y motor están mezclados | El dato vive en el volumen; el contenedor es descartable |
-| Levantar el entorno son ocho pasos de memoria | Es un archivo versionado: `docker compose up -d` |
-| Probar otra versión implica desinstalar | Cambiás una línea y recreás el contenedor |
+| Problema real                                          | Cómo lo resuelve Docker                                    |
+| ------------------------------------------------------ | ---------------------------------------------------------- |
+| La versión depende de lo que instaló cada uno          | Queda fijada en el `docker-compose.yaml`: `postgres:16.15` |
+| Reinstalar deja restos (servicios, usuarios, carpetas) | `docker compose down -v` y no queda nada                   |
+| Estado y motor están mezclados                         | El dato vive en el volumen; el contenedor es descartable   |
+| Levantar el entorno son ocho pasos de memoria          | Es un archivo versionado: `docker compose up -d`           |
+| Probar otra versión implica desinstalar                | Cambiás una línea y recreás el contenedor                  |
 
 Lo que Docker **no** hace: no reemplaza a PostgreSQL ni a SQL, no hace que la API sea segura y no convierte esto en producción. Es una forma reproducible de tener el motor, nada más.
 
@@ -515,7 +515,7 @@ Usamos **16.15** a propósito: es una versión estable y el path del volumen (`/
 
 ### 3.3 El archivo compose
 
-En la raíz de `tarea-013/`, un archivo `docker-compose.yaml`:
+En la raíz de la directorio del proyecto, un archivo `docker-compose.yaml`:
 
 ```yaml
 services:
@@ -539,21 +539,33 @@ volumes:
   postgres:
 ```
 
-| Línea | Qué hace |
-|---|---|
-| `image: postgres:16.15` | Fija la versión del motor. No "la última" |
-| `container_name: nodepgdb` | Nombre fijo del contenedor: lo ves en Docker Desktop y en TablePlus |
-| `POSTGRES_PASSWORD: ${DB_PASSWORD}` | Toma la contraseña del `.env`, no la escribe en el repo |
-| `POSTGRES_DB: ${DB_NAME}` | Crea la base `nodepgdb` al inicializar |
-| `"5432:5432"` | Publica el puerto del contenedor en tu máquina |
-| `postgres:/var/lib/postgresql/data` | El dato sobrevive a `docker compose down` |
-| `healthcheck` | `pg_isready` cada 5 segundos; habilita `up -d --wait` |
+| Línea                               | Qué hace                                                            |
+| ----------------------------------- | ------------------------------------------------------------------- |
+| `image: postgres:16.15`             | Fija la versión del motor. No "la última"                           |
+| `container_name: nodepgdb`          | Nombre fijo del contenedor: lo ves en Docker Desktop y en TablePlus |
+| `POSTGRES_PASSWORD: ${DB_PASSWORD}` | Toma la contraseña del `.env`, no la escribe en el repo             |
+| `POSTGRES_DB: ${DB_NAME}`           | Crea la base `nodepgdb` al inicializar                              |
+| `"5432:5432"`                       | Publica el puerto del contenedor en tu máquina                      |
+| `postgres:/var/lib/postgresql/data` | El dato sobrevive a `docker compose down`                           |
+| `healthcheck`                       | `pg_isready` cada 5 segundos; habilita `up -d --wait`               |
 
 Tres detalles que importan:
 
 1. **`POSTGRES_USER` no está declarado.** Si no se define, la imagen crea el usuario `postgres` por defecto. Por eso el `.env` usa `DB_USER=postgres`.
 2. **`${DB_PASSWORD}` y `${DB_NAME}` no son valores fijos.** Docker Compose los reemplaza con las variables del `.env` que esté en la misma carpeta que el compose. Si el `.env` no existe, el reemplazo queda vacío, el contenedor falla y lo vas a ver en los logs.
-3. **El volumen se llama `postgres` en el archivo**, pero Docker lo prefija con el nombre de la carpeta: `tarea-013_postgres`. Ese volumen es lo que hace que `docker compose down` no borre los datos.
+3. **El volumen se llama `postgres` en el archivo**, pero Docker lo prefija con el nombre de la carpeta: `{projectName}_postgres`. Ese volumen es lo que hace que `docker compose down` no borre los datos.
+
+```ini
+# .env.example  → este SÍ se commitea, sin secretos
+PORT=3000
+CORS_ORIGIN=http://localhost:5173
+DB_HOST=127.0.0.1
+DB_PORT=5432
+DB_NAME=nodepgdb
+DB_USER=postgres
+DB_PASSWORD=change_me
+DB_LOGGING=false
+```
 
 ### 3.4 Levantar la base
 
@@ -581,15 +593,15 @@ TablePlus es un cliente gráfico: una ventana cómoda para hablar con el mismo m
 1. Abrí TablePlus → **Create a new connection** → **PostgreSQL**.
 2. Completá:
 
-| Campo | Valor |
-|---|---|
-| Name | `Node Users (local)` |
-| Host | `127.0.0.1` |
-| Port | `5432` |
-| User | `postgres` |
+| Campo    | Valor                                            |
+| -------- | ------------------------------------------------ |
+| Name     | `Node Users (local)`                             |
+| Host     | `127.0.0.1`                                      |
+| Port     | `5432`                                           |
+| User     | `postgres`                                       |
 | Password | `app_secret` (el mismo `DB_PASSWORD` del `.env`) |
-| Database | `nodepgdb` (el mismo `DB_NAME` del `.env`) |
-| SSL | desactivado (es local) |
+| Database | `nodepgdb` (el mismo `DB_NAME` del `.env`)       |
+| SSL      | desactivado (es local)                           |
 
 3. **Test** → **Connect**.
 
@@ -626,13 +638,13 @@ SELECT * FROM users ORDER BY id;
 > [!TIP]
 > Si no usás TablePlus, cualquier cliente de PostgreSQL sirve (DBeaver, pgAdmin, DataGrip): los datos de conexión son los mismos de la sección anterior.
 
-| Decisión | Por qué |
-|---|---|
-| `GENERATED BY DEFAULT AS IDENTITY` | Es el estándar SQL moderno; `SERIAL` es el atajo viejo de PostgreSQL |
-| `BY DEFAULT` y no `ALWAYS` | Te permite insertar un `id` explícito si alguna vez lo necesitás |
-| `VARCHAR(120)` | Un límite explícito documenta la intención y evita basura |
-| `UNIQUE` en `email` | La regla vive en la base, no en un `if` del controller |
-| `TIMESTAMPTZ` | Guarda zona horaria. `TIMESTAMP` no, y después se compara mal |
+| Decisión                                  | Por qué                                                                   |
+| ----------------------------------------- | ------------------------------------------------------------------------- |
+| `GENERATED BY DEFAULT AS IDENTITY`        | Es el estándar SQL moderno; `SERIAL` es el atajo viejo de PostgreSQL      |
+| `BY DEFAULT` y no `ALWAYS`                | Te permite insertar un `id` explícito si alguna vez lo necesitás          |
+| `VARCHAR(120)`                            | Un límite explícito documenta la intención y evita basura                 |
+| `UNIQUE` en `email`                       | La regla vive en la base, no en un `if` del controller                    |
+| `TIMESTAMPTZ`                             | Guarda zona horaria. `TIMESTAMP` no, y después se compara mal             |
 | `created_at` / `updated_at` en snake_case | Es la convención de SQL y lo que Sequelize espera con `underscored: true` |
 
 > [!IMPORTANT]
@@ -640,17 +652,17 @@ SELECT * FROM users ORDER BY id;
 
 ### 3.7 Problemas frecuentes
 
-| Síntoma | Causa probable | Solución |
-|---|---|---|
-| `port is already allocated` | Ya hay un PostgreSQL local en `5432` | `lsof -i :5432` y detenerlo, o cambiar a `"5433:5432"` en el compose y `DB_PORT=5433` en el `.env` |
-| `The "DB_PASSWORD" variable is not set` (warning de compose) | No existe el `.env` en la misma carpeta que el compose | Crear `tarea-013/.env` con las variables |
-| `Database is uninitialized and superuser password is not specified` | El compose interpoló un password vacío | Revisar que `DB_PASSWORD` esté en el `.env` y volver a levantar |
-| `password authentication failed for user "postgres"` | El volumen se inicializó con otro password | El password queda grabado en el volumen: `docker compose down -v` y volver a levantar |
-| `database "nodepgdb" does not exist` | `DB_NAME` distinto del que se usó al crear el volumen | Revisar `DB_NAME` o `down -v` para reinicializar |
-| `ECONNREFUSED 127.0.0.1:5432` | El contenedor no está corriendo | Levantar la base con `docker compose up -d --wait` |
-| `no configuration file provided` | Estás en otra carpeta | Ejecutá los comandos desde `tarea-013/` |
-| TablePlus conecta pero no ve la tabla | Otra base seleccionada | Verificar el campo **Database**: `nodepgdb` |
-| `docker: command not found` | Docker Desktop no está instalado o no está en el `PATH` | Instalar Docker Desktop y abrirlo |
+| Síntoma                                                             | Causa probable                                          | Solución                                                                                           |
+| ------------------------------------------------------------------- | ------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `port is already allocated`                                         | Ya hay un PostgreSQL local en `5432`                    | `lsof -i :5432` y detenerlo, o cambiar a `"5433:5432"` en el compose y `DB_PORT=5433` en el `.env` |
+| `The "DB_PASSWORD" variable is not set` (warning de compose)        | No existe el `.env` en la misma carpeta que el compose  | Crear el `.env` con las variables                                                                  |
+| `Database is uninitialized and superuser password is not specified` | El compose interpoló un password vacío                  | Revisar que `DB_PASSWORD` esté en el `.env` y volver a levantar                                    |
+| `password authentication failed for user "postgres"`                | El volumen se inicializó con otro password              | El password queda grabado en el volumen: `docker compose down -v` y volver a levantar              |
+| `database "nodepgdb" does not exist`                                | `DB_NAME` distinto del que se usó al crear el volumen   | Revisar `DB_NAME` o `down -v` para reinicializar                                                   |
+| `ECONNREFUSED 127.0.0.1:5432`                                       | El contenedor no está corriendo                         | Levantar la base con `docker compose up -d --wait`                                                 |
+| `no configuration file provided`                                    | Estás en otra carpeta                                   | Ejecutá los comandos desde el directorio del proyecto                                              |
+| TablePlus conecta pero no ve la tabla                               | Otra base seleccionada                                  | Verificar el campo **Database**: `nodepgdb`                                                        |
+| `docker: command not found`                                         | Docker Desktop no está instalado o no está en el `PATH` | Instalar Docker Desktop y abrirlo                                                                  |
 
 <sub>[⬆ Volver al índice](#contenido)</sub>
 
@@ -672,14 +684,14 @@ No decide reglas de negocio ni reemplaza el SQL: traduce y ejecuta.
 
 El driver (`pg`) te da `client.query("SELECT ...")` y nada más. Con eso podés hacer todo, pero **vos** te encargás de cada detalle:
 
-| Problema | Con el driver a mano | Con un ORM |
-|---|---|---|
-| **Inyección SQL** | Si concatenás strings, `' OR 1=1 --` entra en la consulta | Usa consultas parametrizadas: el valor viaja aparte del SQL |
-| Nombres de columnas | `created_at` escrito a mano en cada consulta | Declarado una vez en el modelo |
-| Resultado | Filas planas `{ name: ... }` | Instancias con métodos (`user.update()`) |
-| Relaciones | `JOIN` escrito y mapeado a mano | `hasMany`, `belongsTo` |
-| Validación | La escribís en cada `INSERT` | Reglas declaradas en el modelo |
-| Cambiar de motor | Rehacés las consultas | Cambiás el dialecto |
+| Problema            | Con el driver a mano                                      | Con un ORM                                                  |
+| ------------------- | --------------------------------------------------------- | ----------------------------------------------------------- |
+| **Inyección SQL**   | Si concatenás strings, `' OR 1=1 --` entra en la consulta | Usa consultas parametrizadas: el valor viaja aparte del SQL |
+| Nombres de columnas | `created_at` escrito a mano en cada consulta              | Declarado una vez en el modelo                              |
+| Resultado           | Filas planas `{ name: ... }`                              | Instancias con métodos (`user.update()`)                    |
+| Relaciones          | `JOIN` escrito y mapeado a mano                           | `hasMany`, `belongsTo`                                      |
+| Validación          | La escribís en cada `INSERT`                              | Reglas declaradas en el modelo                              |
+| Cambiar de motor    | Rehacés las consultas                                     | Cambiás el dialecto                                         |
 
 La **inyección SQL** es la razón número uno. Mirá la diferencia:
 
@@ -689,7 +701,9 @@ const sql = `SELECT * FROM users WHERE email = '${email}'`;
 // Si email = "' OR '1'='1", la consulta devuelve todos los usuarios
 
 // ✅ Parametrizado: el valor no se interpreta como SQL
-const { rows } = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
+const { rows } = await pool.query("SELECT * FROM users WHERE email = $1", [
+  email,
+]);
 ```
 
 Un ORM hace esto por vos en cada `findOne`, `create` y `update`. No te vuelve inmune (una consulta cruda mal armada sigue siendo tu responsabilidad), pero elimina la clase de error más común y más grave.
@@ -700,24 +714,24 @@ Un ORM hace esto por vos en cada `findOne`, `create` y `update`. No te vuelve in
 
 #### No es el único
 
-| Herramienta | Para qué se usa |
-|---|---|
-| **Sequelize** | El clásico con Express. Modelos con clases, SQL, migraciones |
-| **Prisma** | Schema declarativo propio (`schema.prisma`) y cliente generado y tipado |
-| **TypeORM** | Decoradores y entidades; muy usado con TypeScript y NestJS |
-| **Mongoose** | MongoDB (NoSQL). Modela documentos, no tablas |
-| **Drizzle** | Query builder + ORM tipado, más cerca del SQL |
+| Herramienta   | Para qué se usa                                                         |
+| ------------- | ----------------------------------------------------------------------- |
+| **Sequelize** | El clásico con Express. Modelos con clases, SQL, migraciones            |
+| **Prisma**    | Schema declarativo propio (`schema.prisma`) y cliente generado y tipado |
+| **TypeORM**   | Decoradores y entidades; muy usado con TypeScript y NestJS              |
+| **Mongoose**  | MongoDB (NoSQL). Modela documentos, no tablas                           |
+| **Drizzle**   | Query builder + ORM tipado, más cerca del SQL                           |
 
 Mongoose es el caso interesante: es un **ODM** (Object-Document Mapper) para una base NoSQL. La idea de mapear objetos a registros es la misma; lo que cambia es que el registro es un documento y no una fila.
 
 En esta clase usamos **Sequelize** porque el SQL que ya sabés se traduce de forma directa y porque su API de modelos se parece a la que vas a ver en el resto del curso. Si mañana cambiás a Prisma o TypeORM, el concepto de ORM es el mismo.
 
-| Situación | ORM | SQL a mano |
-|---|---|---|
-| CRUD simple | ✅ Ideal | Trabajo repetitivo |
-| Reportes con `GROUP BY`, `HAVING`, CTEs | Forzado | ✅ Ideal |
-| Migraciones de esquema | Con `sequelize-cli` | ✅ Control total |
-| Prototipo rápido | ✅ | Más código |
+| Situación                               | ORM                 | SQL a mano         |
+| --------------------------------------- | ------------------- | ------------------ |
+| CRUD simple                             | ✅ Ideal            | Trabajo repetitivo |
+| Reportes con `GROUP BY`, `HAVING`, CTEs | Forzado             | ✅ Ideal           |
+| Migraciones de esquema                  | Con `sequelize-cli` | ✅ Control total   |
+| Prototipo rápido                        | ✅                  | Más código         |
 
 > [!IMPORTANT]
 > Un ORM no reemplaza saber SQL. Si no sabés qué es un `JOIN`, no vas a poder depurar el `JOIN` que el ORM generó. Por eso primero SQL y después Sequelize.
@@ -728,14 +742,14 @@ En esta clase usamos **Sequelize** porque el SQL que ya sabés se traduce de for
 npm install express cors yup dotenv sequelize pg pg-hstore
 ```
 
-| Paquete | Rol |
-|---|---|
-| `sequelize` | El ORM |
-| `pg` | Driver de PostgreSQL (el que habla el protocolo) |
-| `pg-hstore` | Serialización de columnas `hstore` (Sequelize lo pide para Postgres) |
-| `dotenv` | Carga `.env` en `process.env` |
-| `yup` | Validación del DTO |
-| `express` / `cors` | La API que ya conocés |
+| Paquete            | Rol                                                                  |
+| ------------------ | -------------------------------------------------------------------- |
+| `sequelize`        | El ORM                                                               |
+| `pg`               | Driver de PostgreSQL (el que habla el protocolo)                     |
+| `pg-hstore`        | Serialización de columnas `hstore` (Sequelize lo pide para Postgres) |
+| `dotenv`           | Carga `.env` en `process.env`                                        |
+| `yup`              | Validación del DTO                                                   |
+| `express` / `cors` | La API que ya conocés                                                |
 
 > [!NOTE]
 > `sequelize` 6.x es la línea estable. La 7 sigue en alpha, así que para clase usamos la 6: la API que vas a encontrar en la mayoría de los proyectos y en la documentación oficial.
@@ -831,14 +845,14 @@ export const sequelize = new Sequelize({
 });
 ```
 
-| Opción | Por qué |
-|---|---|
-| `dialect: "postgres"` | Usa `pg` internamente |
-| `required(...)` | Falla al arrancar, no en la primera request |
-| `logging` | En `true`, imprime el SQL generado. Enseña muchísimo |
-| `define.underscored` | `createdAt` → `created_at` automáticamente |
-| `define.timestamps` | Sequelize maneja `created_at` y `updated_at` solo |
-| `pool` | Reutiliza conexiones en vez de abrir una por request |
+| Opción                | Por qué                                              |
+| --------------------- | ---------------------------------------------------- |
+| `dialect: "postgres"` | Usa `pg` internamente                                |
+| `required(...)`       | Falla al arrancar, no en la primera request          |
+| `logging`             | En `true`, imprime el SQL generado. Enseña muchísimo |
+| `define.underscored`  | `createdAt` → `created_at` automáticamente           |
+| `define.timestamps`   | Sequelize maneja `created_at` y `updated_at` solo    |
+| `pool`                | Reutiliza conexiones en vez de abrir una por request |
 
 > [!NOTE]
 > `define` aplica valores por defecto a **todos** los modelos. Así no repetís `underscored: true` en cada `init`.
@@ -873,17 +887,17 @@ main().catch((error) => {
 
 `process.exit(1)` es la parte importante: el proceso termina con código de error. Docker, systemd o el panel que uses lo ven como un servicio caído, no como uno "sano que falla en cada request".
 
-| | Con fail fast | Sin fail fast |
-|---|---|---|
-| Cuándo lo descubrís | Al arrancar | Con la primera request del usuario |
-| Qué ve el usuario | Nada: el servicio no está arriba | Un `500` con stack trace |
-| Qué ves vos | `ECONNREFUSED 127.0.0.1:5432` | El mismo error, escondido entre logs de requests |
-| Estado del proceso | Muerto, sin aceptar tráfico | Vivo, aceptando y fallando |
+|                     | Con fail fast                    | Sin fail fast                                    |
+| ------------------- | -------------------------------- | ------------------------------------------------ |
+| Cuándo lo descubrís | Al arrancar                      | Con la primera request del usuario               |
+| Qué ve el usuario   | Nada: el servicio no está arriba | Un `500` con stack trace                         |
+| Qué ves vos         | `ECONNREFUSED 127.0.0.1:5432`    | El mismo error, escondido entre logs de requests |
+| Estado del proceso  | Muerto, sin aceptar tráfico      | Vivo, aceptando y fallando                       |
 
-| Alternativa | Cuándo |
-|---|---|
-| `authenticate()` al arrancar | Siempre que la API no sirva sin base |
-| Sin `authenticate()` | Tests unitarios que mockean todo, o procesos que toleran modo offline |
+| Alternativa                  | Cuándo                                                                |
+| ---------------------------- | --------------------------------------------------------------------- |
+| `authenticate()` al arrancar | Siempre que la API no sirva sin base                                  |
+| Sin `authenticate()`         | Tests unitarios que mockean todo, o procesos que toleran modo offline |
 
 > [!TIP]
 > Un `console.log` con el nombre de la base te ahorra el clásico "estoy conectado a la base equivocada". Ponelo.
@@ -898,14 +912,14 @@ main().catch((error) => {
 
 El modelo es la representación en JavaScript de una tabla. No es un DTO y no es una entidad de dominio: es la puerta de entrada al motor.
 
-| SQL | Sequelize |
-|---|---|
-| `CREATE TABLE users (...)` | `User.init({...}, { tableName: "users" })` |
-| `id INTEGER ... IDENTITY` | `{ type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true }` |
-| `VARCHAR(120) NOT NULL` | `{ type: DataTypes.STRING(120), allowNull: false }` |
-| `UNIQUE` | `{ unique: true }` |
-| `DEFAULT now()` | `{ defaultValue: DataTypes.NOW }` |
-| `created_at TIMESTAMPTZ` | `timestamps: true` + `underscored: true` |
+| SQL                        | Sequelize                                                            |
+| -------------------------- | -------------------------------------------------------------------- |
+| `CREATE TABLE users (...)` | `User.init({...}, { tableName: "users" })`                           |
+| `id INTEGER ... IDENTITY`  | `{ type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true }` |
+| `VARCHAR(120) NOT NULL`    | `{ type: DataTypes.STRING(120), allowNull: false }`                  |
+| `UNIQUE`                   | `{ unique: true }`                                                   |
+| `DEFAULT now()`            | `{ defaultValue: DataTypes.NOW }`                                    |
+| `created_at TIMESTAMPTZ`   | `timestamps: true` + `underscored: true`                             |
 
 ### 5.2 El modelo
 
@@ -928,7 +942,10 @@ User.init(
       allowNull: false,
       validate: {
         notEmpty: { msg: "Name cannot be empty" },
-        len: { args: [2, 120], msg: "Name must be between 2 and 120 characters" },
+        len: {
+          args: [2, 120],
+          msg: "Name must be between 2 and 120 characters",
+        },
       },
     },
     email: {
@@ -950,14 +967,14 @@ User.init(
 );
 ```
 
-| Decisión | Por qué |
-|---|---|
-| `class User extends Model` | Permite métodos propios y `instanceof` |
-| `modelName: "User"` | Nombre en el código (`User.findOne`) |
-| `tableName: "users"` | Nombre real en la base. Sin esto, Sequelize pluraliza solo |
-| `underscored: true` | `createdAt` ↔ `created_at` |
-| `timestamps: true` | Sequelize completa y actualiza las fechas |
-| `unique` en `email` | Sequelize valida antes de llegar al `UNIQUE` de la tabla |
+| Decisión                   | Por qué                                                    |
+| -------------------------- | ---------------------------------------------------------- |
+| `class User extends Model` | Permite métodos propios y `instanceof`                     |
+| `modelName: "User"`        | Nombre en el código (`User.findOne`)                       |
+| `tableName: "users"`       | Nombre real en la base. Sin esto, Sequelize pluraliza solo |
+| `underscored: true`        | `createdAt` ↔ `created_at`                                 |
+| `timestamps: true`         | Sequelize completa y actualiza las fechas                  |
+| `unique` en `email`        | Sequelize valida antes de llegar al `UNIQUE` de la tabla   |
 
 > [!IMPORTANT]
 > `modelName` y `tableName` no son lo mismo. Si `tableName` no coincide con la tabla real, la primera query falla con `relation "..." does not exist`. Declaralo siempre de forma explícita: no dependas de la pluralización automática.
@@ -967,15 +984,15 @@ User.init(
 
 ### 5.3 Operaciones básicas
 
-| Operación | Sequelize | SQL equivalente |
-|---|---|---|
-| Listar | `User.findAll({ order: [["id", "ASC"]] })` | `SELECT * FROM users ORDER BY id ASC` |
-| Por id | `User.findByPk(id)` | `SELECT * FROM users WHERE id = $1 LIMIT 1` |
-| Por email | `User.findOne({ where: { email } })` | `SELECT * FROM users WHERE email = $1 LIMIT 1` |
-| Crear | `User.create({ name, email })` | `INSERT INTO users (...) VALUES (...) RETURNING *` |
-| Actualizar | `user.update({ name })` | `UPDATE users SET name = $1 WHERE id = $2` |
-| Borrar | `user.destroy()` | `DELETE FROM users WHERE id = $1` |
-| Contar | `User.count()` | `SELECT COUNT(*) FROM users` |
+| Operación  | Sequelize                                  | SQL equivalente                                    |
+| ---------- | ------------------------------------------ | -------------------------------------------------- |
+| Listar     | `User.findAll({ order: [["id", "ASC"]] })` | `SELECT * FROM users ORDER BY id ASC`              |
+| Por id     | `User.findByPk(id)`                        | `SELECT * FROM users WHERE id = $1 LIMIT 1`        |
+| Por email  | `User.findOne({ where: { email } })`       | `SELECT * FROM users WHERE email = $1 LIMIT 1`     |
+| Crear      | `User.create({ name, email })`             | `INSERT INTO users (...) VALUES (...) RETURNING *` |
+| Actualizar | `user.update({ name })`                    | `UPDATE users SET name = $1 WHERE id = $2`         |
+| Borrar     | `user.destroy()`                           | `DELETE FROM users WHERE id = $1`                  |
+| Contar     | `User.count()`                             | `SELECT COUNT(*) FROM users`                       |
 
 Consultas con operadores:
 
@@ -994,16 +1011,16 @@ const users = await User.findAll({
 });
 ```
 
-| Operador | SQL |
-|---|---|
-| `Op.eq` | `=` |
-| `Op.ne` | `<>` |
-| `Op.gt` / `Op.gte` | `>` / `>=` |
-| `Op.lt` / `Op.lte` | `<` / `<=` |
-| `Op.like` / `Op.iLike` | `LIKE` / `ILIKE` |
-| `Op.in` | `IN (...)` |
-| `Op.is` | `IS` (para `NULL`) |
-| `Op.and` / `Op.or` | `AND` / `OR` |
+| Operador               | SQL                |
+| ---------------------- | ------------------ |
+| `Op.eq`                | `=`                |
+| `Op.ne`                | `<>`               |
+| `Op.gt` / `Op.gte`     | `>` / `>=`         |
+| `Op.lt` / `Op.lte`     | `<` / `<=`         |
+| `Op.like` / `Op.iLike` | `LIKE` / `ILIKE`   |
+| `Op.in`                | `IN (...)`         |
+| `Op.is`                | `IS` (para `NULL`) |
+| `Op.and` / `Op.or`     | `AND` / `OR`       |
 
 > [!TIP]
 > Poné `logging: console.log` un rato y mirá el SQL que genera cada consulta. Es la forma más rápida de entender el ORM, y la más rápida de detectar un `SELECT *` innecesario.
@@ -1049,12 +1066,12 @@ Si te saltás el paso 1, la primera query falla con `column "password_hash" does
 
 `sync()` crea las tablas que faltan a partir de los modelos. No es una migración: no versiona nada ni te avisa qué va a cambiar.
 
-| Método | Qué hace | Riesgo |
-|---|---|---|
-| `sync()` | Crea las tablas que faltan. **No** agrega columnas a una tabla existente | Bajo |
-| `sync({ alter: true })` | Compara modelo y tabla, y aplica `ALTER` | **Puede borrar o renombrar columnas** |
-| `sync({ force: true })` | `DROP` + `CREATE` | Borra todo |
-| Migración (`sequelize-cli`) | Cambios versionados, en orden y reversibles | El camino profesional |
+| Método                      | Qué hace                                                                 | Riesgo                                |
+| --------------------------- | ------------------------------------------------------------------------ | ------------------------------------- |
+| `sync()`                    | Crea las tablas que faltan. **No** agrega columnas a una tabla existente | Bajo                                  |
+| `sync({ alter: true })`     | Compara modelo y tabla, y aplica `ALTER`                                 | **Puede borrar o renombrar columnas** |
+| `sync({ force: true })`     | `DROP` + `CREATE`                                                        | Borra todo                            |
+| Migración (`sequelize-cli`) | Cambios versionados, en orden y reversibles                              | El camino profesional                 |
 
 ```javascript
 // SOLO en una base de desarrollo descartable
@@ -1063,11 +1080,11 @@ await sequelize.sync({ force: true });
 
 La regla práctica:
 
-| Base | Qué usar |
-|---|---|
-| Desarrollo, sin datos que te importen | `sync({ alter: true })` y revisar qué hizo |
-| Cualquier base con datos | `ALTER TABLE` a mano, como arriba |
-| Proyecto en serio | Migraciones: un archivo por cambio, con `up` y `down` |
+| Base                                  | Qué usar                                              |
+| ------------------------------------- | ----------------------------------------------------- |
+| Desarrollo, sin datos que te importen | `sync({ alter: true })` y revisar qué hizo            |
+| Cualquier base con datos              | `ALTER TABLE` a mano, como arriba                     |
+| Proyecto en serio                     | Migraciones: un archivo por cambio, con `up` y `down` |
 
 > [!WARNING]
 > `sync({ alter: true })` en una base con datos es una de las formas más rápidas de perder información, y no siempre genera el `ALTER` que esperás. Con datos reales, la columna se agrega con SQL o con una migración.
@@ -1076,13 +1093,13 @@ La regla práctica:
 
 Hay dos validaciones y no son la misma:
 
-| | Validación del DTO | Validación del modelo |
-|---|---|---|
-| Dónde vive | `src/dtos/` | `src/models/` |
-| Qué protege | La frontera HTTP | La integridad de la fila |
-| Cuándo corre | Antes del controller | En cada `create` / `update` |
-| Qué devuelve | `400` con `details` | `SequelizeValidationError` |
-| Cubre | Requests de la API | Cualquier camino, incluso un script |
+|              | Validación del DTO   | Validación del modelo               |
+| ------------ | -------------------- | ----------------------------------- |
+| Dónde vive   | `src/dtos/`          | `src/models/`                       |
+| Qué protege  | La frontera HTTP     | La integridad de la fila            |
+| Cuándo corre | Antes del controller | En cada `create` / `update`         |
+| Qué devuelve | `400` con `details`  | `SequelizeValidationError`          |
+| Cubre        | Requests de la API   | Cualquier camino, incluso un script |
 
 No es redundancia: son cinturones distintos. El DTO dice "esto no es un usuario válido para mi API". El modelo dice "esto no es una fila válida para mi tabla".
 
@@ -1091,14 +1108,14 @@ No es redundancia: son cinturones distintos. El DTO dice "esto no es un usuario 
 
 ### 5.6 Errores de Sequelize
 
-| Error | Cuándo aparece | Status sugerido | Código |
-|---|---|---|---|
-| `SequelizeUniqueConstraintError` | Violaste un `UNIQUE` | `409` | `EMAIL_TAKEN` |
-| `SequelizeValidationError` | Falló una validación del modelo | `400` | `VALIDATION_ERROR` |
-| `SequelizeConnectionRefusedError` | La base no está arriba | `503` | `DATABASE_UNAVAILABLE` |
-| `SequelizeConnectionError` | Credenciales o base inexistente | `503` | `DATABASE_UNAVAILABLE` |
-| `SequelizeForeignKeyConstraintError` | Insertaste una FK que no existe | `409` | `CONSTRAINT_VIOLATION` |
-| `SequelizeDatabaseError` | SQL inválido o columna inexistente | `500` | `DATABASE_ERROR` |
+| Error                                | Cuándo aparece                     | Status sugerido | Código                 |
+| ------------------------------------ | ---------------------------------- | --------------- | ---------------------- |
+| `SequelizeUniqueConstraintError`     | Violaste un `UNIQUE`               | `409`           | `EMAIL_TAKEN`          |
+| `SequelizeValidationError`           | Falló una validación del modelo    | `400`           | `VALIDATION_ERROR`     |
+| `SequelizeConnectionRefusedError`    | La base no está arriba             | `503`           | `DATABASE_UNAVAILABLE` |
+| `SequelizeConnectionError`           | Credenciales o base inexistente    | `503`           | `DATABASE_UNAVAILABLE` |
+| `SequelizeForeignKeyConstraintError` | Insertaste una FK que no existe    | `409`           | `CONSTRAINT_VIOLATION` |
+| `SequelizeDatabaseError`             | SQL inválido o columna inexistente | `500`           | `DATABASE_ERROR`       |
 
 ```javascript
 import { UniqueConstraintError, ValidationError } from "sequelize";
@@ -1122,11 +1139,11 @@ HTTP body  →  createUserDto  →  Controller  →  Model  →  tabla users
    (crudo)      (contrato)        (traduce)    (persiste)
 ```
 
-| Es | No es |
-|---|---|
-| Un contrato de entrada o salida | El modelo de Sequelize |
-| El lugar donde se valida y normaliza | Una entidad de dominio |
-| Una allowlist de campos | Un `{...req.body}` disfrazado |
+| Es                                   | No es                         |
+| ------------------------------------ | ----------------------------- |
+| Un contrato de entrada o salida      | El modelo de Sequelize        |
+| El lugar donde se valida y normaliza | Una entidad de dominio        |
+| Una allowlist de campos              | Un `{...req.body}` disfrazado |
 
 ### 6.2 Por qué existe
 
@@ -1151,13 +1168,13 @@ Con DTO:
 const user = await User.create(req.dto);
 ```
 
-| Beneficio | Ejemplo concreto |
-|---|---|
-| **Allowlist** | `noUnknown(true)` rechaza `role`, `id`, `isAdmin` |
-| **Normalización** | `trim()` y `lowercase()` antes de guardar |
-| **Validación temprana** | `400` con `details` antes de tocar la base |
-| **Desacople** | Cambiás la tabla sin cambiar el JSON que recibe el cliente |
-| **Seguridad** | Lo que no está declarado, no pasa |
+| Beneficio               | Ejemplo concreto                                           |
+| ----------------------- | ---------------------------------------------------------- |
+| **Allowlist**           | `noUnknown(true)` rechaza `role`, `id`, `isAdmin`          |
+| **Normalización**       | `trim()` y `lowercase()` antes de guardar                  |
+| **Validación temprana** | `400` con `details` antes de tocar la base                 |
+| **Desacople**           | Cambiás la tabla sin cambiar el JSON que recibe el cliente |
+| **Seguridad**           | Lo que no está declarado, no pasa                          |
 
 > [!IMPORTANT]
 > El DTO no "filtra" datos por comodidad: define el contrato. Si el campo no está en el DTO, el cliente no puede escribirlo. No hay `delete req.body.role` que sobreviva al próximo refactor.
@@ -1202,13 +1219,13 @@ export function toUserResponse(user) {
 }
 ```
 
-| Línea | Qué hace |
-|---|---|
-| `const name = ...` | Una sola definición del campo, reusada en crear y actualizar |
-| `.required()` | Solo en `createUserDto`: al crear, el nombre no es opcional |
-| `.noUnknown(true, ...)` | Rechaza las claves que el contrato no declara |
-| `.test("at-least-one", ...)` | Un `PATCH {}` no es una actualización válida |
-| `toUserResponse` | Allowlist de salida: si mañana agregás una columna, no sale sola |
+| Línea                        | Qué hace                                                         |
+| ---------------------------- | ---------------------------------------------------------------- |
+| `const name = ...`           | Una sola definición del campo, reusada en crear y actualizar     |
+| `.required()`                | Solo en `createUserDto`: al crear, el nombre no es opcional      |
+| `.noUnknown(true, ...)`      | Rechaza las claves que el contrato no declara                    |
+| `.test("at-least-one", ...)` | Un `PATCH {}` no es una actualización válida                     |
+| `toUserResponse`             | Allowlist de salida: si mañana agregás una columna, no sale sola |
 
 > [!NOTE]
 > **¿Por qué no una clase?** Porque hoy el DTO no tiene comportamiento: valida y normaliza. Una clase se justifica cuando el DTO necesita lógica propia (por ejemplo, aceptar `fullName` y partirlo en `name` y `lastName`) o cuando querés métodos como `toEntity()`. Hasta entonces, el contrato es el schema y alcanza.
@@ -1247,12 +1264,12 @@ export const validateBody = (schema) => async (req, res, next) => {
 };
 ```
 
-| Aspecto | Schema suelto junto a las rutas | Contrato en `src/dtos/` |
-|---|---|---|
-| Nombre | `createUserSchema` | `createUserDto` |
-| Ubicación | Mezclado con rutas y configuración | Un archivo por dominio: `user.dto.js` |
-| Resultado en la request | `req.body` reemplazado por el validado | `req.dto`, con nombre propio |
-| Operaciones | Un schema por operación | Un contrato por operación: `createUserDto` y `updateUserDto` |
+| Aspecto                 | Schema suelto junto a las rutas        | Contrato en `src/dtos/`                                      |
+| ----------------------- | -------------------------------------- | ------------------------------------------------------------ |
+| Nombre                  | `createUserSchema`                     | `createUserDto`                                              |
+| Ubicación               | Mezclado con rutas y configuración     | Un archivo por dominio: `user.dto.js`                        |
+| Resultado en la request | `req.body` reemplazado por el validado | `req.dto`, con nombre propio                                 |
+| Operaciones             | Un schema por operación                | Un contrato por operación: `createUserDto` y `updateUserDto` |
 
 > [!NOTE]
 > El controller nunca ve `req.body`: ve `req.dto`, y sabe que pasó por la frontera.
@@ -1269,20 +1286,20 @@ res.json({ data: user });
 res.json({ data: toUserResponse(user) });
 ```
 
-| Contrato | Dirección | Qué controla |
-|---|---|---|
-| `createUserDto` | Entrada | Qué se puede crear |
-| `updateUserDto` | Entrada | Qué se puede modificar |
-| `toUserResponse` | Salida | Qué se puede ver |
+| Contrato         | Dirección | Qué controla           |
+| ---------------- | --------- | ---------------------- |
+| `createUserDto`  | Entrada   | Qué se puede crear     |
+| `updateUserDto`  | Entrada   | Qué se puede modificar |
+| `toUserResponse` | Salida    | Qué se puede ver       |
 
 ### 6.6 DTO, modelo y entidad
 
-| Pieza | Conoce HTTP | Conoce la base | Conoce reglas de negocio | Ejemplo |
-|---|---|---|---|---|
-| DTO | Sí (body/JSON) | No | Solo de formato | `createUserDto` |
-| Modelo (ORM) | No | Sí | Validaciones de fila | `User` |
-| Entidad de dominio | No | No | Sí | `User` con `changeEmail()` |
-| Row / registro | No | Sí (cruda) | No | `{ id, name, email }` |
+| Pieza              | Conoce HTTP    | Conoce la base | Conoce reglas de negocio | Ejemplo                    |
+| ------------------ | -------------- | -------------- | ------------------------ | -------------------------- |
+| DTO                | Sí (body/JSON) | No             | Solo de formato          | `createUserDto`            |
+| Modelo (ORM)       | No             | Sí             | Validaciones de fila     | `User`                     |
+| Entidad de dominio | No             | No             | Sí                       | `User` con `changeEmail()` |
+| Row / registro     | No             | Sí (cruda)     | No                       | `{ id, name, email }`      |
 
 Esta clase usa DTO + Modelo. La entidad de dominio aparece cuando las reglas dejan de ser "validar campos" y pasan a ser "un usuario no puede cambiar de email sin confirmarlo". Ahí el modelo de Sequelize deja de ser el lugar de las reglas.
 
@@ -1344,16 +1361,16 @@ tarea-013/
         └── user.routes.js
 ```
 
-| Carpeta | Responsabilidad | No debería conocer |
-|---|---|---|
-| `routes` | Path, método, middlewares | Reglas de negocio |
-| `middlewares` | Validar, normalizar, cortar | Cómo se guarda |
-| `controllers` | Traducir HTTP ↔ datos | SQL crudo |
-| `models` | Tabla y relaciones | `req` / `res` |
-| `dtos` | Contrato de entrada/salida | Express y Sequelize |
-| `config` | Conexión | Rutas |
-| `app.js` | Armar la app | Arrancar el proceso |
-| `server.js` | Conectar, escuchar, cerrar | Rutas concretas |
+| Carpeta       | Responsabilidad             | No debería conocer  |
+| ------------- | --------------------------- | ------------------- |
+| `routes`      | Path, método, middlewares   | Reglas de negocio   |
+| `middlewares` | Validar, normalizar, cortar | Cómo se guarda      |
+| `controllers` | Traducir HTTP ↔ datos       | SQL crudo           |
+| `models`      | Tabla y relaciones          | `req` / `res`       |
+| `dtos`        | Contrato de entrada/salida  | Express y Sequelize |
+| `config`      | Conexión                    | Rutas               |
+| `app.js`      | Armar la app                | Arrancar el proceso |
+| `server.js`   | Conectar, escuchar, cerrar  | Rutas concretas     |
 
 > [!NOTE]
 > Una vez que las reglas de negocio dejen de entrar en un controller, el paso siguiente es la arquitectura por capas: `Service` y `Repository`, con las dependencias armadas en un único lugar. No son enemigas de este patrón: son etapas.
@@ -1364,7 +1381,7 @@ tarea-013/
 
 ```json
 {
-  "name": "tarea-013-users-api",
+  "name": "tarea-013",
   "version": "1.0.0",
   "type": "module",
   "private": true,
@@ -1517,7 +1534,10 @@ export function toUserResponse(user) {
 
 ```javascript
 export class AppError extends Error {
-  constructor(message, { status = 500, code = "INTERNAL_ERROR", details } = {}) {
+  constructor(
+    message,
+    { status = 500, code = "INTERNAL_ERROR", details } = {},
+  ) {
     super(message);
 
     this.name = "AppError";
@@ -1599,7 +1619,10 @@ export const errorHandler = (error, req, res, next) => {
   // JSON mal formado: lo lanza express.json()
   if (error.type === "entity.parse.failed") {
     return res.status(400).json({
-      error: { code: "INVALID_JSON", message: "Request body is not valid JSON" },
+      error: {
+        code: "INVALID_JSON",
+        message: "Request body is not valid JSON",
+      },
     });
   }
 
@@ -1744,7 +1767,12 @@ userRouter.get("/search", controller.search);
 userRouter.get("/", controller.list);
 userRouter.get("/:id", validateUserId, controller.getById);
 userRouter.post("/", validateBody(createUserDto), controller.create);
-userRouter.patch("/:id", validateUserId, validateBody(updateUserDto), controller.update);
+userRouter.patch(
+  "/:id",
+  validateUserId,
+  validateBody(updateUserDto),
+  controller.update,
+);
 userRouter.delete("/:id", validateUserId, controller.remove);
 ```
 
@@ -1786,13 +1814,13 @@ export function createApp() {
 }
 ```
 
-| Orden | Middleware | Por qué en ese lugar |
-|---|---|---|
-| 1 | `cors()` | Tiene que responder el `OPTIONS` antes que cualquier ruta |
-| 2 | `express.json()` | Sin esto, `req.body` es `undefined` |
-| 3 | Rutas | Ya hay body parseado |
-| 4 | `notFoundHandler` | Después de todas las rutas |
-| 5 | `errorHandler` | Último, con cuatro argumentos |
+| Orden | Middleware        | Por qué en ese lugar                                      |
+| ----- | ----------------- | --------------------------------------------------------- |
+| 1     | `cors()`          | Tiene que responder el `OPTIONS` antes que cualquier ruta |
+| 2     | `express.json()`  | Sin esto, `req.body` es `undefined`                       |
+| 3     | Rutas             | Ya hay body parseado                                      |
+| 4     | `notFoundHandler` | Después de todas las rutas                                |
+| 5     | `errorHandler`    | Último, con cuatro argumentos                             |
 
 #### `src/server.js`
 
@@ -1999,11 +2027,11 @@ ALTER TABLE users ADD COLUMN password_hash VARCHAR(255) NOT NULL;
 
 Si la tabla ya tiene filas, ese `NOT NULL` va a fallar: las filas existentes no tienen valor. Las dos opciones están en [5.4](#54-modificar-el-esquema-agregar-un-campo).
 
-| Decisión | Por qué |
-|---|---|
+| Decisión                                | Por qué                                                                         |
+| --------------------------------------- | ------------------------------------------------------------------------------- |
 | Se llama `password_hash`, no `password` | El nombre tiene que decir qué contiene. `password` invita a guardar texto plano |
-| `VARCHAR(255)` | Un hash bcrypt ocupa 60 caracteres; 255 deja aire |
-| `NOT NULL` | Un usuario sin contraseña no puede loguearse |
+| `VARCHAR(255)`                          | Un hash bcrypt ocupa 60 caracteres; 255 deja aire                               |
+| `NOT NULL`                              | Un usuario sin contraseña no puede loguearse                                    |
 
 **2. El modelo**
 
@@ -2070,11 +2098,11 @@ export const create = async (req, res) => {
 
 `bcrypt.hash` genera un **salt** aleatorio por contraseña y lo guarda dentro del hash. Dos usuarios con la misma contraseña terminan con hashes distintos: eso invalida las tablas precalculadas (rainbow tables).
 
-| Regla | Detalle |
-|---|---|
-| Nunca guardar `password` | Si la base se filtra, las contraseñas se filtran |
-| Nunca usar `md5` ni `sha1` | Son rápidos: se rompen por fuerza bruta en segundos |
-| No inventar el algoritmo | `bcrypt`, `argon2` o `scrypt`. Son los tres aceptados |
+| Regla                       | Detalle                                                            |
+| --------------------------- | ------------------------------------------------------------------ |
+| Nunca guardar `password`    | Si la base se filtra, las contraseñas se filtran                   |
+| Nunca usar `md5` ni `sha1`  | Son rápidos: se rompen por fuerza bruta en segundos                |
+| No inventar el algoritmo    | `bcrypt`, `argon2` o `scrypt`. Son los tres aceptados              |
 | `SALT_ROUNDS` entre 10 y 12 | Más rondas = más seguro y más lento. Con 12, un hash tarda ~250 ms |
 
 **5. El login**
@@ -2103,12 +2131,12 @@ export const login = async (req, res) => {
 };
 ```
 
-| Regla | Por qué |
-|---|---|
+| Regla                                                        | Por qué                                                                 |
+| ------------------------------------------------------------ | ----------------------------------------------------------------------- |
 | Un solo mensaje para email inexistente y password incorrecta | Si el mensaje cambia, el atacante descubre qué emails están registrados |
-| `bcrypt.compare` y no `===` | El hash lleva salt: se compara con la función |
-| `401`, no `404` | Un `404` también revela que el email no existe |
-| Nunca devolver `password_hash` | Ni en el login, ni en el listado, ni en un error |
+| `bcrypt.compare` y no `===`                                  | El hash lleva salt: se compara con la función                           |
+| `401`, no `404`                                              | Un `404` también revela que el email no existe                          |
+| Nunca devolver `password_hash`                               | Ni en el login, ni en el listado, ni en un error                        |
 
 **6. Lo que no puede pasar**
 
@@ -2125,28 +2153,28 @@ export const login = async (req, res) => {
 
 ### 7.7 Errores frecuentes
 
-| Síntoma | Causa probable | Solución |
-|---|---|---|
-| `column "createdAt" does not exist` | Falta `underscored: true` en `define` o en el modelo | Agregarlo; la tabla usa `created_at` |
-| `relation "users" does not exist` | La tabla no se creó o `tableName` está mal | Ejecutar el DDL y revisar `tableName` |
-| `relation "Users" does not exist` | Sequelize pluralizó y capitalizó solo | Declarar `tableName: "users"` |
-| `ECONNREFUSED 127.0.0.1:5432` | El contenedor no está corriendo | Levantar la base con `docker compose up -d --wait` |
-| `password authentication failed` | `.env` distinto a las variables del contenedor | Alinear credenciales o recrear el contenedor |
-| `SequelizeConnectionError: database ... does not exist` | `DB_NAME` no coincide con `POSTGRES_DB` | Corregir `.env` o crear la base |
-| Los datos desaparecen al recrear el contenedor | El volumen del compose no apunta al directorio de datos de la imagen | Revisar que `volumes` monte en `/var/lib/postgresql/data` |
-| `GET /api/users/search` devuelve `INVALID_ID` | `/:id` declarada antes de `/search` | Reordenar las rutas |
-| `req.body` es `undefined` | Falta `express.json()` | Registrarlo antes de las rutas |
-| `req.dto` es `undefined` | Falta `validateBody(schema)` en la ruta | Agregar el middleware |
-| `Cannot use import statement outside a module` | Falta `"type": "module"` | Agregarlo y reiniciar |
-| `ERR_HTTP_HEADERS_SENT` | El handler responde y además llama a `next()` | `return` al responder |
-| El `errorHandler` nunca corre | Tiene tres argumentos | Declararlo con cuatro `(error, req, res, next)` |
-| `201` con el campo desconocido ignorado | `stripUnknown: true` sin `noUnknown` | Usar `noUnknown(true)` y `stripUnknown: false` |
-| `SequelizeValidationError` como `500` | No se mapeó el error en el middleware | Mapearlo a `400` |
-| `409` no aparece y explota con `500` | No se captura `UniqueConstraintError` | Agregar el `instanceof` en `errorHandler` |
-| `ECONNRESET` al apagar | No se cerró el pool | `sequelize.close()` en el shutdown |
-| `--watch` reinicia en loop | El proceso escribe archivos dentro del proyecto | Excluir logs/temporales o no escribir en el repo |
-| Todo responde `404` | El `notFoundHandler` se registró antes de las rutas | Moverlo al final |
-| CORS falla solo en el navegador | Origen no incluido en `CORS_ORIGIN` | Agregarlo separado por coma |
+| Síntoma                                                 | Causa probable                                                       | Solución                                                  |
+| ------------------------------------------------------- | -------------------------------------------------------------------- | --------------------------------------------------------- |
+| `column "createdAt" does not exist`                     | Falta `underscored: true` en `define` o en el modelo                 | Agregarlo; la tabla usa `created_at`                      |
+| `relation "users" does not exist`                       | La tabla no se creó o `tableName` está mal                           | Ejecutar el DDL y revisar `tableName`                     |
+| `relation "Users" does not exist`                       | Sequelize pluralizó y capitalizó solo                                | Declarar `tableName: "users"`                             |
+| `ECONNREFUSED 127.0.0.1:5432`                           | El contenedor no está corriendo                                      | Levantar la base con `docker compose up -d --wait`        |
+| `password authentication failed`                        | `.env` distinto a las variables del contenedor                       | Alinear credenciales o recrear el contenedor              |
+| `SequelizeConnectionError: database ... does not exist` | `DB_NAME` no coincide con `POSTGRES_DB`                              | Corregir `.env` o crear la base                           |
+| Los datos desaparecen al recrear el contenedor          | El volumen del compose no apunta al directorio de datos de la imagen | Revisar que `volumes` monte en `/var/lib/postgresql/data` |
+| `GET /api/users/search` devuelve `INVALID_ID`           | `/:id` declarada antes de `/search`                                  | Reordenar las rutas                                       |
+| `req.body` es `undefined`                               | Falta `express.json()`                                               | Registrarlo antes de las rutas                            |
+| `req.dto` es `undefined`                                | Falta `validateBody(schema)` en la ruta                              | Agregar el middleware                                     |
+| `Cannot use import statement outside a module`          | Falta `"type": "module"`                                             | Agregarlo y reiniciar                                     |
+| `ERR_HTTP_HEADERS_SENT`                                 | El handler responde y además llama a `next()`                        | `return` al responder                                     |
+| El `errorHandler` nunca corre                           | Tiene tres argumentos                                                | Declararlo con cuatro `(error, req, res, next)`           |
+| `201` con el campo desconocido ignorado                 | `stripUnknown: true` sin `noUnknown`                                 | Usar `noUnknown(true)` y `stripUnknown: false`            |
+| `SequelizeValidationError` como `500`                   | No se mapeó el error en el middleware                                | Mapearlo a `400`                                          |
+| `409` no aparece y explota con `500`                    | No se captura `UniqueConstraintError`                                | Agregar el `instanceof` en `errorHandler`                 |
+| `ECONNRESET` al apagar                                  | No se cerró el pool                                                  | `sequelize.close()` en el shutdown                        |
+| `--watch` reinicia en loop                              | El proceso escribe archivos dentro del proyecto                      | Excluir logs/temporales o no escribir en el repo          |
+| Todo responde `404`                                     | El `notFoundHandler` se registró antes de las rutas                  | Moverlo al final                                          |
+| CORS falla solo en el navegador                         | Origen no incluido en `CORS_ORIGIN`                                  | Agregarlo separado por coma                               |
 
 <sub>[⬆ Volver al índice](#contenido)</sub>
 
