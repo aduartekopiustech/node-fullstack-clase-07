@@ -528,7 +528,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres:/var/lib/postgresql/data
+      - ./postgres:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d ${DB_NAME}"]
       interval: 5s
@@ -539,21 +539,21 @@ volumes:
   postgres:
 ```
 
-| Línea                               | Qué hace                                                            |
-| ----------------------------------- | ------------------------------------------------------------------- |
-| `image: postgres:16.15`             | Fija la versión del motor. No "la última"                           |
-| `container_name: nodepgdb`          | Nombre fijo del contenedor: lo ves en Docker Desktop y en TablePlus |
-| `POSTGRES_PASSWORD: ${DB_PASSWORD}` | Toma la contraseña del `.env`, no la escribe en el repo             |
-| `POSTGRES_DB: ${DB_NAME}`           | Crea la base `nodepgdb` al inicializar                              |
-| `"5432:5432"`                       | Publica el puerto del contenedor en tu máquina                      |
-| `postgres:/var/lib/postgresql/data` | El dato sobrevive a `docker compose down`                           |
-| `healthcheck`                       | `pg_isready` cada 5 segundos; habilita `up -d --wait`               |
+| Línea                                 | Qué hace                                                            |
+| ------------------------------------- | ------------------------------------------------------------------- |
+| `image: postgres:16.15`               | Fija la versión del motor. No "la última"                           |
+| `container_name: nodepgdb`            | Nombre fijo del contenedor: lo ves en Docker Desktop y en TablePlus |
+| `POSTGRES_PASSWORD: ${DB_PASSWORD}`   | Toma la contraseña del `.env`, no la escribe en el repo             |
+| `POSTGRES_DB: ${DB_NAME}`             | Crea la base `nodepgdb` al inicializar                              |
+| `"5432:5432"`                         | Publica el puerto del contenedor en tu máquina                      |
+| `./postgres:/var/lib/postgresql/data` | El dato sobrevive a `docker compose down`                           |
+| `healthcheck`                         | `pg_isready` cada 5 segundos; habilita `up -d --wait`               |
 
 Tres detalles que importan:
 
 1. **`POSTGRES_USER` no está declarado.** Si no se define, la imagen crea el usuario `postgres` por defecto. Por eso el `.env` usa `DB_USER=postgres`.
 2. **`${DB_PASSWORD}` y `${DB_NAME}` no son valores fijos.** Docker Compose los reemplaza con las variables del `.env` que esté en la misma carpeta que el compose. Si el `.env` no existe, el reemplazo queda vacío, el contenedor falla y lo vas a ver en los logs.
-3. **El volumen se llama `postgres` en el archivo**, pero Docker lo prefija con el nombre de la carpeta: `{projectName}_postgres`. Ese volumen es lo que hace que `docker compose down` no borre los datos.
+3. **El volumen se llama `postgres` en el archivo**, pero Docker lo prefija con el nombre de la carpeta: `{projectName}`. Ese volumen es lo que hace que `docker compose down` no borre los datos.
 
 ```ini
 # .env.example  → este SÍ se commitea, sin secretos
