@@ -71,7 +71,7 @@
    - [Código completo](#73-código-completo)
    - [Pruebas con curl](#74-pruebas-con-curl)
    - [Criterios de aceptación](#75-criterios-de-aceptación)
-   - [Desafío: password](#76-desafío-agregar-password-a-los-usuarios)
+   - [Desafío: password y roles](#76-desafío-password-y-roles)
    - [Errores frecuentes](#77-errores-frecuentes)
 8. [Referencias](#8-referencias)
 
@@ -480,13 +480,13 @@ En Node, Sequelize expone lo mismo con `sequelize.transaction()`.
 
 Una base de datos no es un archivo que se abre: es un proceso que escucha en un puerto, con usuarios, permisos, configuración propia y un directorio de datos que no se puede mover a mano. Instalarlo dentro del sistema operativo obliga a registrar un servicio, crear usuarios del sistema, pelear con el `PATH` y limpiar restos cuando algo sale mal.
 
-Docker separa ese proceso de tu máquina en tres piezas: la **imagen** trae el motor y su configuración inicial, el **contenedor** es el proceso aislado que corre, y el **volumen** es donde vive el dato, fuera del contenedor. Esa separación es lo que permite borrar y recrear el motor sin perder la base.
+Docker separa ese proceso de tu máquina en tres piezas: la **imagen** trae el motor y su configuración inicial, el **contenedor** es el proceso aislado que corre, y el **volumen** (o _bind mount_) es donde vive el dato, fuera del contenedor. Esa separación es lo que permite borrar y recrear el motor sin perder la base.
 
 | Problema real                                          | Cómo lo resuelve Docker                                    |
 | ------------------------------------------------------ | ---------------------------------------------------------- |
 | La versión depende de lo que instaló cada uno          | Queda fijada en el `docker-compose.yaml`: `postgres:16.15` |
-| Reinstalar deja restos (servicios, usuarios, carpetas) | `docker compose down -v` y no queda nada                   |
-| Estado y motor están mezclados                         | El dato vive en el volumen; el contenedor es descartable   |
+| Reinstalar deja restos (servicios, usuarios, carpetas) | `docker compose down` + borrar `./postgres/`, y no queda nada |
+| Estado y motor están mezclados                         | El dato vive en `./postgres/`; el contenedor es descartable |
 | Levantar el entorno son ocho pasos de memoria          | Es un archivo versionado: `docker compose up -d`           |
 | Probar otra versión implica desinstalar                | Cambiás una línea y recreás el contenedor                  |
 
@@ -534,9 +534,6 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
-
-volumes:
-  postgres:
 ```
 
 | Línea                                 | Qué hace                                                            |
@@ -546,14 +543,17 @@ volumes:
 | `POSTGRES_PASSWORD: ${DB_PASSWORD}`   | Toma la contraseña del `.env`, no la escribe en el repo             |
 | `POSTGRES_DB: ${DB_NAME}`             | Crea la base `nodepgdb` al inicializar                              |
 | `"5432:5432"`                         | Publica el puerto del contenedor en tu máquina                      |
-| `./postgres:/var/lib/postgresql/data` | El dato sobrevive a `docker compose down`                           |
+| `./postgres:/var/lib/postgresql/data` | El dato vive en una carpeta del proyecto; va en `.gitignore`        |
 | `healthcheck`                         | `pg_isready` cada 5 segundos; habilita `up -d --wait`               |
 
 Tres detalles que importan:
 
 1. **`POSTGRES_USER` no está declarado.** Si no se define, la imagen crea el usuario `postgres` por defecto. Por eso el `.env` usa `DB_USER=postgres`.
 2. **`${DB_PASSWORD}` y `${DB_NAME}` no son valores fijos.** Docker Compose los reemplaza con las variables del `.env` que esté en la misma carpeta que el compose. Si el `.env` no existe, el reemplazo queda vacío, el contenedor falla y lo vas a ver en los logs.
-3. **El volumen se llama `postgres` en el archivo**, pero Docker lo prefija con el nombre de la carpeta: `{projectName}`. Ese volumen es lo que hace que `docker compose down` no borre los datos.
+3. **El dato vive en `./postgres/`, dentro del proyecto.** `./postgres:/var/lib/postgresql/data` es un _bind mount_: la carpeta `postgres/` de tu proyecto pasa a ser el directorio de datos de PostgreSQL. Por eso **ese directorio va en `.gitignore`** (lo agregamos en [4.3](#43-variables-de-entorno)): son miles de archivos binarios y credenciales internas que no tienen nada que hacer en el repo.
+
+> [!WARNING]
+> Con un _bind mount_, `docker compose down -v` **no borra los datos**: `-v` solo elimina volúmenes nombrados, y `./postgres/` es una carpeta tuya. Para empezar de cero hay que borrar `./postgres/` a mano, con el contenedor detenido.
 
 ```ini
 # .env.example  → este SÍ se commitea, sin secretos
@@ -584,7 +584,7 @@ docker compose up -d --wait
 
 `--wait` no devuelve el control hasta que el healthcheck pasa. Cuando el comando termina, la base ya está escuchando en `127.0.0.1:5432` y podés conectarte.
 
-Para apagarla cuando termines: `docker compose down`. Los datos quedan en el volumen y vuelven la próxima vez que la levantes.
+Para apagarla cuando termines: `docker compose down`. Los datos quedan en `./postgres/` y vuelven la próxima vez que la levantes.
 
 ### 3.5 Conectar TablePlus
 
@@ -657,8 +657,8 @@ SELECT * FROM users ORDER BY id;
 | `port is already allocated`                                         | Ya hay un PostgreSQL local en `5432`                    | `lsof -i :5432` y detenerlo, o cambiar a `"5433:5432"` en el compose y `DB_PORT=5433` en el `.env` |
 | `The "DB_PASSWORD" variable is not set` (warning de compose)        | No existe el `.env` en la misma carpeta que el compose  | Crear el `.env` con las variables                                                                  |
 | `Database is uninitialized and superuser password is not specified` | El compose interpoló un password vacío                  | Revisar que `DB_PASSWORD` esté en el `.env` y volver a levantar                                    |
-| `password authentication failed for user "postgres"`                | El volumen se inicializó con otro password              | El password queda grabado en el volumen: `docker compose down -v` y volver a levantar              |
-| `database "nodepgdb" does not exist`                                | `DB_NAME` distinto del que se usó al crear el volumen   | Revisar `DB_NAME` o `down -v` para reinicializar                                                   |
+| `password authentication failed for user "postgres"`                | El directorio de datos se inicializó con otro password  | Queda grabado en `./postgres/`: con el contenedor detenido, borrá esa carpeta y volvé a levantar    |
+| `database "nodepgdb" does not exist`                                | `DB_NAME` distinto del que se usó al crear el directorio | Revisar `DB_NAME` o borrar `./postgres/` para reinicializar                                        |
 | `ECONNREFUSED 127.0.0.1:5432`                                       | El contenedor no está corriendo                         | Levantar la base con `docker compose up -d --wait`                                                 |
 | `no configuration file provided`                                    | Estás en otra carpeta                                   | Ejecutá los comandos desde el directorio del proyecto                                              |
 | TablePlus conecta pero no ve la tabla                               | Otra base seleccionada                                  | Verificar el campo **Database**: `nodepgdb`                                                        |
@@ -800,10 +800,17 @@ DB_LOGGING=false
 ```gitignore
 node_modules/
 .env
+postgres/
 ```
 
+| Línea           | Por qué                                                                                                                       |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `node_modules/` | Dependencias: se reinstalan con `npm install`                                                                                 |
+| `.env`          | Credenciales reales; lo que se commitea es `.env.example`                                                                      |
+| `postgres/`     | Es el directorio de datos del contenedor (`./postgres:/var/lib/postgresql/data`). Si se commitea, subís miles de archivos binarios y el contenido de tu base |
+
 > [!WARNING]
-> Si commiteaste un `.env` con una contraseña real, cambiar el `.gitignore` no alcanza: la contraseña quedó en el historial. Rotá la credencial.
+> Si ya commiteaste `.env` o `postgres/`, agregarlos al `.gitignore` no alcanza: siguen en el historial y en el índice. Para la carpeta de datos, `git rm -r --cached postgres` deja de trackearla **sin borrar los archivos** ni tus datos. Para la contraseña, rotala.
 
 ### 4.4 Archivo de conexión
 
@@ -1986,8 +1993,8 @@ curl -s -w '\n%{http_code}\n' http://localhost:3000/api/users
 ### 7.5 Criterios de aceptación
 
 - [ ] `npm install` instala `express`, `cors`, `yup`, `dotenv`, `sequelize`, `pg` y `pg-hstore`.
-- [ ] `.env.example` está en el repo y `.env` está en `.gitignore`.
-- [ ] La base corre en el contenedor definido en `docker-compose.yaml`, con el volumen declarado.
+- [ ] `.env.example` está en el repo, y `.env` y `postgres/` están en `.gitignore`.
+- [ ] La base corre en el contenedor definido en `docker-compose.yaml`, con el directorio de datos declarado.
 - [ ] La tabla `users` existe con `id`, `name`, `email`, `created_at` y `updated_at`.
 - [ ] `npm run dev` conecta a la base y arranca en el puerto `3000`.
 - [ ] Si la base no está arriba, el proceso falla al arrancar con un mensaje claro.
@@ -2013,9 +2020,15 @@ curl -s -w '\n%{http_code}\n' http://localhost:3000/api/users
 - [ ] El README del proyecto explica los pasos para levantarlo desde cero.
 - [ ] `Ctrl + C` cierra el servidor y el pool sin dejar el proceso colgado.
 
-### 7.6 Desafío: agregar password a los usuarios
+### 7.6 Desafío: password y roles
 
-**Objetivo:** que un usuario tenga contraseña, que se guarde de forma segura y que se pueda verificar en un login. La contraseña **no se guarda**: se guarda su hash.
+**Objetivo:** que un usuario tenga contraseña y rol, que la contraseña se guarde hasheada, que se pueda verificar en un login y que solo un administrador pueda cambiar roles.
+
+Son dos partes independientes: la primera es **autenticación** (quién sos); la segunda, **autorización** (qué podés hacer).
+
+#### Parte 1: password
+
+La contraseña **no se guarda**: se guarda su hash.
 
 **1. La columna en la base**
 
@@ -2138,7 +2151,7 @@ export const login = async (req, res) => {
 | `401`, no `404`                                              | Un `404` también revela que el email no existe                          |
 | Nunca devolver `password_hash`                               | Ni en el login, ni en el listado, ni en un error                        |
 
-**6. Lo que no puede pasar**
+**6. Lo que no puede pasar (password)**
 
 - [ ] `GET /api/users` no devuelve `password_hash` en ninguna fila.
 - [ ] `POST /api/users` no devuelve `password_hash`.
@@ -2150,6 +2163,179 @@ export const login = async (req, res) => {
 
 > [!TIP]
 > Verificación rápida: `SELECT email, password_hash FROM users;` tiene que mostrar algo como `$2b$12$...`. Si ves la contraseña, el paso 4 no se ejecutó.
+
+#### Parte 2: roles
+
+Dos roles, ni uno más:
+
+| Rol           | Qué puede                                                       |
+| ------------- | --------------------------------------------------------------- |
+| `ROLE_USER`   | Lo que ya hace la API: verse a sí mismo, listar usuarios        |
+| `ROLE_ADMIN`  | Además, cambiar el rol de cualquier usuario                     |
+
+**1. El tipo ENUM en PostgreSQL**
+
+Un `VARCHAR` acepta cualquier string. Un **ENUM nativo** acepta solo los valores declarados, y el motor rechaza el resto.
+
+```sql
+CREATE TYPE user_role AS ENUM ('ROLE_USER', 'ROLE_ADMIN');
+
+ALTER TABLE users
+  ADD COLUMN role user_role NOT NULL DEFAULT 'ROLE_USER';
+```
+
+Si todavía no creaste la tabla, el tipo va antes y la columna dentro del `CREATE TABLE`:
+
+```sql
+CREATE TYPE user_role AS ENUM ('ROLE_USER', 'ROLE_ADMIN');
+
+CREATE TABLE users (
+  id INTEGER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+  name VARCHAR(120) NOT NULL,
+  email VARCHAR(255) NOT NULL UNIQUE,
+  role user_role NOT NULL DEFAULT 'ROLE_USER',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+```
+
+| Decisión                       | Por qué                                            |
+| ------------------------------ | -------------------------------------------------- |
+| Tipo nativo y no `VARCHAR`     | La integridad la garantiza el motor, no el código  |
+| `DEFAULT 'ROLE_USER'`          | Nadie nace administrador                           |
+| `NOT NULL`                     | Todo usuario tiene un rol                          |
+
+> [!NOTE]
+> El ENUM nativo es de PostgreSQL; en otros motores Sequelize lo emula con un `CHECK`. Agregar un valor después pide `ALTER TYPE user_role ADD VALUE 'ROLE_X'`; **quitar** un valor no se puede: hay que crear el tipo de nuevo y migrar la columna.
+
+**2. El modelo con `DataTypes.ENUM`**
+
+```javascript
+role: {
+  type: DataTypes.ENUM("ROLE_USER", "ROLE_ADMIN"),
+  allowNull: false,
+  defaultValue: "ROLE_USER",
+  validate: {
+    isIn: { args: [["ROLE_USER", "ROLE_ADMIN"]], msg: "Invalid role" },
+  },
+},
+```
+
+| Capa                        | Cuándo rechaza                                              | Qué devuelve                       |
+| --------------------------- | ----------------------------------------------------------- | ---------------------------------- |
+| Yup (`.oneOf()`)            | Antes del controller                                        | `400` con `details`                |
+| Sequelize (`ENUM` + `isIn`) | En `validate()`, `create` o `update`                        | `SequelizeValidationError` → `400` |
+| PostgreSQL (`user_role`)    | En cualquier `INSERT`/`UPDATE` que saltee las capas previas | `SequelizeDatabaseError` (`22P02`) → `500` |
+
+Tres barreras, tres momentos. La de la base es la única que no se puede saltear con un script.
+
+> [!IMPORTANT]
+> `DataTypes.ENUM` **solo declara** los valores permitidos: en Sequelize 6 no valida el string antes de mandarlo. Verificado: `User.create({ role: "ADMIN" })` llega a PostgreSQL y explota con `22P02`, no con `SequelizeValidationError`. Ese es el motivo del `isIn`: convierte el error de la base en un `400` con mensaje claro. Sin `isIn`, un rol inválido que esquive a Yup termina en `500`.
+
+> [!NOTE]
+> Los valores tienen que coincidir **exactamente** entre el `CREATE TYPE`, el `DataTypes.ENUM` y el `.oneOf()`. `ROLE_USER` no es `role_user` ni `user`. Si difieren, el error aparece recién al insertar.
+
+**3. El DTO con `.oneOf()`**
+
+```javascript
+const role = yup
+  .string()
+  .oneOf(["ROLE_USER", "ROLE_ADMIN"], "Role must be ROLE_USER or ROLE_ADMIN");
+
+export const assignRoleDto = yup
+  .object({ role: role.required() })
+  .noUnknown(true, "Unknown fields are not allowed");
+```
+
+Y lo que **no** va en `createUserDto`: si aceptás `role` en el registro, el cliente se autoasigna `ROLE_ADMIN` con un `POST`. El registro siempre crea `ROLE_USER`, porque lo pone el `DEFAULT` de la tabla.
+
+**4. El middleware de autorización**
+
+```javascript
+// src/middlewares/require-role.middleware.js
+export const requireRole = (role) => (req, res, next) => {
+  const currentRole = req.header("x-user-role");
+
+  if (currentRole !== role) {
+    return res.status(403).json({
+      error: { code: "FORBIDDEN", message: "Insufficient permissions" },
+    });
+  }
+
+  next();
+};
+```
+
+```javascript
+// src/routes/user.routes.js
+userRouter.patch(
+  "/:id/role",
+  requireRole("ROLE_ADMIN"),
+  validateUserId,
+  validateBody(assignRoleDto),
+  controller.assignRole,
+);
+```
+
+| Decisión                            | Por qué                                                    |
+| ----------------------------------- | ---------------------------------------------------------- |
+| `403`, no `401`                     | `401` es "no sé quién sos"; `403` es "sé quién sos y no podés" |
+| El middleware antes del controller  | Si no está autorizado, no se toca la base                  |
+| Ruta dedicada `/:id/role`           | Cambiar un rol no es un `PATCH` de datos comunes           |
+
+> [!WARNING]
+> `x-user-role` es una **simulación**: cualquiera puede enviar ese header. No es autenticación. Sirve para practicar la mecánica del middleware; en un proyecto real el rol sale de un token firmado que el servidor verifica. Sin eso, este endpoint es una puerta abierta.
+
+**5. El controller**
+
+```javascript
+export const assignRole = async (req, res) => {
+  const user = await User.findByPk(req.userId);
+
+  if (!user) {
+    throw userNotFound();
+  }
+
+  await user.update({ role: req.dto.role });
+
+  res.json({ data: toUserResponse(user) });
+};
+```
+
+Y `toUserResponse` tiene que empezar a devolver `role`:
+
+```javascript
+export function toUserResponse(user) {
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+  };
+}
+```
+
+**6. Lo que no puede pasar (roles)**
+
+- [ ] `POST /api/users` con `role` en el body responde `400` (no se autoasigna).
+- [ ] Un usuario recién creado tiene `role = "ROLE_USER"`.
+- [ ] `PATCH /api/users/:id/role` sin header responde `403 FORBIDDEN`.
+- [ ] Con `x-user-role: ROLE_USER` responde `403`.
+- [ ] Con `x-user-role: ROLE_ADMIN` y `{"role":"ROLE_ADMIN"}` responde `200` y el cambio se ve en la base.
+- [ ] Con `{"role":"ADMIN"}` responde `400`: lo rechaza Yup, no la base.
+- [ ] Un `INSERT` a mano con `role = 'SUPERADMIN'` falla en PostgreSQL.
+- [ ] `GET /api/users` devuelve `role` en cada fila.
+
+> [!TIP]
+> Para probar el `403`:
+>
+> ```bash
+> curl -i -X PATCH http://localhost:3000/api/users/1/role \
+>   -H 'Content-Type: application/json' \
+>   -d '{"role":"ROLE_ADMIN"}'
+> ```
+>
+> Sin el header responde `403`. Agregando `-H 'x-user-role: ROLE_ADMIN'` pasa a `200`.
 
 ### 7.7 Errores frecuentes
 
