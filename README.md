@@ -51,6 +51,7 @@
    - [Variables de entorno](#43-variables-de-entorno)
    - [Archivo de conexión](#44-archivo-de-conexión)
    - [Arranque con fail fast](#45-arranque-con-fail-fast)
+   - [sync(): ¿el ORM crea las tablas?](#46-sync-el-orm-crea-las-tablas)
 5. [Modelo User con Sequelize](#5-modelo-user-con-sequelize)
    - [Del SQL al modelo](#51-del-sql-al-modelo)
    - [El modelo](#52-el-modelo)
@@ -736,6 +737,71 @@ En esta clase usamos **Sequelize** porque el SQL que ya sabés se traduce de for
 > [!IMPORTANT]
 > Un ORM no reemplaza saber SQL. Si no sabés qué es un `JOIN`, no vas a poder depurar el `JOIN` que el ORM generó. Por eso primero SQL y después Sequelize.
 
+#### Cómo se ve un JOIN en Sequelize
+
+El `INNER JOIN` de la [sección 2.5](#25-join) se escribe en dos partes. Primero declarás la relación, una sola vez:
+
+```javascript
+// src/models/associations.js
+import { User } from "./user.model.js";
+import { Post } from "./post.model.js";
+
+User.hasMany(Post, { foreignKey: "user_id", as: "posts" });
+Post.belongsTo(User, { foreignKey: "user_id", as: "user" });
+```
+
+> [!WARNING]
+> No declares la asociación dentro de `user.model.js`. Para eso tendrías que importar `post.model.js` desde `user.model.js`, y `post.model.js` ya importa `user.model.js`: imports circulares. En ESM uno de los dos llega sin inicializar y el proceso muere con `ReferenceError: Cannot access 'User' before initialization`. Un archivo aparte, importado una vez al arrancar (por ejemplo desde `app.js`), evita el problema.
+
+Después, la consulta:
+
+```javascript
+const users = await User.findAll({
+  attributes: ["name"],
+  include: [
+    { model: Post, as: "posts", attributes: ["title"], required: true },
+  ],
+});
+```
+
+Ese `include` genera este SQL (capturado con `logging`):
+
+```sql
+SELECT "User"."id", "User"."name", "posts"."id" AS "posts.id", "posts"."title" AS "posts.title"
+FROM "users" AS "User"
+INNER JOIN "posts" AS "posts" ON "User"."id" = "posts"."user_id";
+```
+
+Y devuelve los posts anidados dentro de cada usuario:
+
+```json
+[
+  {
+    "name": "John Doe",
+    "posts": [{ "title": "Mi primer post" }, { "title": "Segundo post" }]
+  }
+]
+```
+
+| SQL                                     | Sequelize                                                     |
+| --------------------------------------- | ------------------------------------------------------------- |
+| `INNER JOIN`                            | `required: true`, o un `where` dentro del `include`           |
+| `LEFT JOIN`                             | `required: false`, que es el **default**                      |
+| `ON posts.user_id = users.id`           | `foreignKey: "user_id"` en la asociación                      |
+| `SELECT users.name, posts.title`        | `attributes: ["name"]` y `attributes: ["title"]` en el `include` |
+
+**Por qué esto sustenta la advertencia de arriba.** Solo mirando el SQL aparecen los bugs que el ORM esconde:
+
+| Síntoma                                                 | Qué pasó en el SQL                                                                        |
+| ------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Desaparecen los usuarios que no tienen posts            | `required: true`, o un `where` en el `include`, convirtió el `LEFT` en `INNER`            |
+| Aparecen usuarios sin posts cuando querías filtrarlos   | El default es `LEFT`; falta `required: true`                                              |
+| El filtro no filtra como esperabas                      | Un `where` dentro del `include` va al `ON` (`AND "posts"."title" = ...`), no al `WHERE`     |
+| Trae columnas que no pediste                            | `attributes` mal puesto: salió un `SELECT *`                                              |
+
+> [!NOTE]
+> `attributes: ["name"]` no devuelve **solo** `name`: Sequelize agrega la PK (`"User"."id"`) porque la necesita para armar las instancias y agrupar los posts. No es un bug.
+
 ### 4.2 Instalación
 
 ```bash
@@ -909,6 +975,46 @@ main().catch((error) => {
 > [!TIP]
 > Un `console.log` con el nombre de la base te ahorra el clásico "estoy conectado a la base equivocada". Ponelo.
 
+### 4.6 sync(): ¿el ORM crea las tablas?
+
+Sí. Una de las capacidades del ORM es **comparar los modelos con la base y crear las tablas que faltan**. En Sequelize eso es `sequelize.sync()`.
+
+```javascript
+await sequelize.sync();
+```
+
+| Método                      | Qué hace                                                                 | Riesgo                                |
+| --------------------------- | ------------------------------------------------------------------------ | ------------------------------------- |
+| `sync()`                    | Crea las tablas que faltan. **No** agrega columnas a una tabla existente | Bajo                                  |
+| `sync({ alter: true })`     | Compara modelo y tabla, y aplica `ALTER`                                 | **Puede borrar o renombrar columnas** |
+| `sync({ force: true })`     | `DROP` + `CREATE`                                                        | Borra todo                            |
+| Migración (`sequelize-cli`) | Cambios versionados, en orden y reversibles                              | El camino profesional                 |
+
+Verificado: `sync()` crea la tabla si no existe; si después agregás un campo al modelo y volvés a llamarlo, la columna **no** aparece. Recién con `sync({ alter: true })` se agrega.
+
+**¿Dónde va ese código?** Nunca en `config/database.js` ni en el arranque del server: `alter` y `force` se ejecutan a mano, cuando vos querés. Va en un script aparte:
+
+```javascript
+// scripts/sync.js
+import { sequelize } from "../src/config/database.js";
+
+// Sin este import, sequelize.models queda vacío y sync() no hace nada.
+import "../src/models/user.model.js";
+
+await sequelize.sync({ alter: true, logging: console.log });
+await sequelize.close();
+```
+
+```bash
+npm run db:sync   # "db:sync": "node scripts/sync.js" en package.json
+```
+
+> [!IMPORTANT]
+> `sync()` **no es una migración**: no versiona nada, no deja historial y no te avisa qué va a cambiar. Sirve para levantar un esquema desde cero en desarrollo, no para evolucionar una base que ya tiene datos. Cómo se cambia una tabla existente, en [5.4](#54-modificar-el-esquema-agregar-un-campo).
+
+> [!WARNING]
+> `alter: true` compara en las **dos** direcciones: agrega las columnas que faltan y **borra las que están en la tabla y no en el modelo**. Verificado en esta clase: con una tabla que tenía `role` y `password` y un modelo que no las declaraba, Sequelize emitió `ALTER TABLE ... DROP COLUMN "role"` y `DROP COLUMN "password"`. Si tu tabla y tu modelo no coinciden, igualá primero el modelo, y leé el SQL que imprime `logging` antes de darlo por bueno.
+
 <sub>[⬆ Volver al índice](#contenido)</sub>
 
 ---
@@ -981,7 +1087,7 @@ User.init(
 | `tableName: "users"`       | Nombre real en la base. Sin esto, Sequelize pluraliza solo |
 | `underscored: true`        | `createdAt` ↔ `created_at`                                 |
 | `timestamps: true`         | Sequelize completa y actualiza las fechas                  |
-| `unique` en `email`        | Sequelize valida antes de llegar al `UNIQUE` de la tabla   |
+| `unique` en `email`        | Declara el `UNIQUE` en el modelo; el que lo hace cumplir es la tabla |
 
 > [!IMPORTANT]
 > `modelName` y `tableName` no son lo mismo. Si `tableName` no coincide con la tabla real, la primera query falla con `relation "..." does not exist`. Declaralo siempre de forma explícita: no dependas de la pluralización automática.
@@ -1036,30 +1142,30 @@ const users = await User.findAll({
 
 El modelo y la tabla son dos cosas distintas: el modelo dice qué espera tu código, la tabla dice qué existe. **Si agregás un campo al modelo, la tabla no se entera sola.**
 
-Ejemplo concreto: sumar `password_hash` a `users`.
+Ejemplo concreto: sumar `password` a `users`.
 
 **1. La tabla primero.** El `ALTER TABLE` en TablePlus:
 
 ```sql
-ALTER TABLE users ADD COLUMN password_hash VARCHAR(255);
+ALTER TABLE users ADD COLUMN password VARCHAR(255);
 ```
 
 Si la tabla ya tiene filas, agregar `NOT NULL` de una vez falla: esas filas no tienen valor. Hay dos caminos:
 
 ```sql
 -- Opción A: completar las filas existentes y después exigir NOT NULL
-UPDATE users SET password_hash = 'cambiame' WHERE password_hash IS NULL;
-ALTER TABLE users ALTER COLUMN password_hash SET NOT NULL;
+UPDATE users SET password = 'cambiame' WHERE password IS NULL;
+ALTER TABLE users ALTER COLUMN password SET NOT NULL;
 
 -- Opción B: vaciar la tabla en desarrollo y agregar el campo completo
 TRUNCATE users RESTART IDENTITY;
-ALTER TABLE users ADD COLUMN password_hash VARCHAR(255) NOT NULL;
+ALTER TABLE users ADD COLUMN password VARCHAR(255) NOT NULL;
 ```
 
 **2. El modelo después.** El mismo campo, con su tipo y su validación:
 
 ```javascript
-password_hash: {
+password: {
   type: DataTypes.STRING(255),
   allowNull: false,
 },
@@ -1067,34 +1173,17 @@ password_hash: {
 
 **3. Y el DTO de salida.** `toUserResponse` no lo incluye: lo que no está en el DTO, no sale.
 
-Si te saltás el paso 1, la primera query falla con `column "password_hash" does not exist`. Si te saltás el paso 2, la columna existe pero Sequelize no la lee.
+Si te saltás el paso 1, la primera query falla con `column "password" does not exist`. Si te saltás el paso 2, la columna existe pero Sequelize no la lee.
 
 #### ¿Y `sync()`?
 
-`sync()` crea las tablas que faltan a partir de los modelos. No es una migración: no versiona nada ni te avisa qué va a cambiar.
-
-| Método                      | Qué hace                                                                 | Riesgo                                |
-| --------------------------- | ------------------------------------------------------------------------ | ------------------------------------- |
-| `sync()`                    | Crea las tablas que faltan. **No** agrega columnas a una tabla existente | Bajo                                  |
-| `sync({ alter: true })`     | Compara modelo y tabla, y aplica `ALTER`                                 | **Puede borrar o renombrar columnas** |
-| `sync({ force: true })`     | `DROP` + `CREATE`                                                        | Borra todo                            |
-| Migración (`sequelize-cli`) | Cambios versionados, en orden y reversibles                              | El camino profesional                 |
-
-```javascript
-// SOLO en una base de desarrollo descartable
-await sequelize.sync({ force: true });
-```
-
-La regla práctica:
+`sync()` crea las tablas que faltan, pero **no agrega columnas a una tabla que ya existe**. Los métodos, los riesgos y por qué no es una migración están en [4.6](#46-sync-el-orm-crea-las-tablas). Para este caso, la regla práctica:
 
 | Base                                  | Qué usar                                              |
 | ------------------------------------- | ----------------------------------------------------- |
 | Desarrollo, sin datos que te importen | `sync({ alter: true })` y revisar qué hizo            |
 | Cualquier base con datos              | `ALTER TABLE` a mano, como arriba                     |
 | Proyecto en serio                     | Migraciones: un archivo por cambio, con `up` y `down` |
-
-> [!WARNING]
-> `sync({ alter: true })` en una base con datos es una de las formas más rápidas de perder información, y no siempre genera el `ALTER` que esperás. Con datos reales, la columna se agrega con SQL o con una migración.
 
 ### 5.5 Validación de modelo vs DTO
 
@@ -1139,18 +1228,41 @@ import { UniqueConstraintError, ValidationError } from "sequelize";
 
 ### 6.1 Qué es un DTO
 
-**DTO** significa **Data Transfer Object**: un objeto que define los datos que cruzan una frontera. Ni más ni menos.
+**DTO** significa **Data Transfer Object**. Es un objeto que define la **estructura de los datos que se transfieren** entre las distintas capas de una aplicación, o entre el cliente y el servidor a través de una API REST.
+
+En Node.js se usa principalmente para:
+
+- Establecer **contratos de entrada y salida**: qué forma tiene el JSON que acepta y el que devuelve cada endpoint.
+- **Controlar qué información se recibe y se expone**: es una allowlist de campos, no un `{...req.body}`.
+- **Desacoplar los modelos de datos de las respuestas HTTP**: la tabla puede cambiar sin romper el contrato con el cliente.
+- Combinarse con librerías como **Yup** para validar y transformar los datos antes de que lleguen al controller, y así evitar exponer información sensible o propiedades internas.
 
 ```text
-HTTP body  →  createUserDto  →  Controller  →  Model  →  tabla users
-   (crudo)      (contrato)        (traduce)    (persiste)
+cliente ──JSON──► createUserDto ──► Controller ──► Model ──► tabla users
+                  (contrato de entrada)
+cliente ◄─JSON─── toUserResponse ◄─ Controller ◄── Model
+                  (contrato de salida)
 ```
 
-| Es                                   | No es                         |
-| ------------------------------------ | ----------------------------- |
-| Un contrato de entrada o salida      | El modelo de Sequelize        |
-| El lugar donde se valida y normaliza | Una entidad de dominio        |
-| Una allowlist de campos              | Un `{...req.body}` disfrazado |
+Es el contrato del controller: no es el modelo (M) ni la vista (V). Vive aparte porque cambia por otra razón: el DTO cambia cuando cambia el contrato con el cliente; el modelo, cuando cambia la tabla.
+
+|                  | DTO                               | Modelo                  |
+| ---------------- | --------------------------------- | ----------------------- |
+| Vive en          | `src/dtos/`                       | `src/models/`           |
+| Conoce           | El contrato HTTP: campos y tipos  | La tabla y sus columnas |
+| Conoce Sequelize | No                                | Sí                      |
+| Cambia cuando    | Cambia el contrato con el cliente | Cambia la tabla         |
+
+En esta API, cada endpoint tiene su contrato:
+
+| Endpoint                   | DTO de entrada               | DTO de salida    |
+| -------------------------- | ---------------------------- | ---------------- |
+| `POST /api/users`          | `createUserDto`              | `toUserResponse` |
+| `PATCH /api/users/:id`     | `updateUserDto`              | `toUserResponse` |
+| `PATCH /api/users/:id/role`| `assignRoleDto`              | `toUserResponse` |
+| `POST /api/auth/login`     | `loginDto`                   | `toUserResponse` |
+
+Ninguno de esos contratos incluye `password`: lo que no está declarado, no entra ni sale. Los beneficios concretos de tenerlos, en [6.2](#62-por-qué-existe).
 
 ### 6.2 Por qué existe
 
@@ -1286,7 +1398,7 @@ export const validateBody = (schema) => async (req, res, next) => {
 Lo que devolvés también es contrato. `res.json(user)` con un modelo de Sequelize expone todo lo que la tabla tenga, hoy y en el futuro.
 
 ```javascript
-// ❌ Si mañana agregás password_hash, se filtra solo
+// ❌ Si mañana agregás una columna sensible, se filtra sola
 res.json({ data: user });
 
 // ✅ Explícito, y el día que agregues una columna, no sale sola
@@ -2026,6 +2138,8 @@ curl -s -w '\n%{http_code}\n' http://localhost:3000/api/users
 
 Son dos partes independientes: la primera es **autenticación** (quién sos); la segunda, **autorización** (qué podés hacer).
 
+Archivos que vas a tocar: `user.model.js`, `user.dto.js`, `user.controller.js` y `user.routes.js`. Y tres nuevos: `auth.controller.js`, `auth.routes.js` y `require-role.middleware.js`, más el `app.use("/api/auth", authRouter)` en `app.js`.
+
 #### Parte 1: password
 
 La contraseña **no se guarda**: se guarda su hash.
@@ -2035,21 +2149,21 @@ La contraseña **no se guarda**: se guarda su hash.
 En TablePlus, sobre una tabla vacía o con datos descartables:
 
 ```sql
-ALTER TABLE users ADD COLUMN password_hash VARCHAR(255) NOT NULL;
+ALTER TABLE users ADD COLUMN password VARCHAR(255) NOT NULL;
 ```
 
 Si la tabla ya tiene filas, ese `NOT NULL` va a fallar: las filas existentes no tienen valor. Las dos opciones están en [5.4](#54-modificar-el-esquema-agregar-un-campo).
 
 | Decisión                                | Por qué                                                                         |
 | --------------------------------------- | ------------------------------------------------------------------------------- |
-| Se llama `password_hash`, no `password` | El nombre tiene que decir qué contiene. `password` invita a guardar texto plano |
+| `password` guarda el hash, no el texto plano | La columna se llama igual que el campo del JSON, pero el contenido es un hash. Nunca se devuelve |
 | `VARCHAR(255)`                          | Un hash bcrypt ocupa 60 caracteres; 255 deja aire                               |
 | `NOT NULL`                              | Un usuario sin contraseña no puede loguearse                                    |
 
 **2. El modelo**
 
 ```javascript
-password_hash: {
+password: {
   type: DataTypes.STRING(255),
   allowNull: false,
 },
@@ -2057,7 +2171,7 @@ password_hash: {
 
 **3. El DTO de entrada**
 
-El cliente manda `password`, nunca `password_hash`; `noUnknown(true)` ya rechaza el segundo.
+El cliente manda `password` en **texto plano**. Ese mismo nombre es el de la columna, que guarda el **hash**: el DTO es la frontera donde el valor cambia de significado. `noUnknown(true)` rechaza cualquier otra clave.
 
 ```javascript
 const password = yup.string().trim().min(8).max(72);
@@ -2099,7 +2213,7 @@ export const create = async (req, res) => {
 
   const user = await User.create({
     ...data,
-    password_hash: await bcrypt.hash(password, SALT_ROUNDS),
+    password: await bcrypt.hash(password, SALT_ROUNDS),
   });
 
   res
@@ -2133,7 +2247,7 @@ export const login = async (req, res) => {
   const { email: inputEmail, password } = req.dto;
   const user = await User.findOne({ where: { email: inputEmail } });
 
-  if (!user || !(await bcrypt.compare(password, user.password_hash))) {
+  if (!user || !(await bcrypt.compare(password, user.password))) {
     throw new AppError("Invalid credentials", {
       status: 401,
       code: "INVALID_CREDENTIALS",
@@ -2149,20 +2263,20 @@ export const login = async (req, res) => {
 | Un solo mensaje para email inexistente y password incorrecta | Si el mensaje cambia, el atacante descubre qué emails están registrados |
 | `bcrypt.compare` y no `===`                                  | El hash lleva salt: se compara con la función                           |
 | `401`, no `404`                                              | Un `404` también revela que el email no existe                          |
-| Nunca devolver `password_hash`                               | Ni en el login, ni en el listado, ni en un error                        |
+| Nunca devolver `password`                               | Ni en el login, ni en el listado, ni en un error                        |
 
 **6. Lo que no puede pasar (password)**
 
-- [ ] `GET /api/users` no devuelve `password_hash` en ninguna fila.
-- [ ] `POST /api/users` no devuelve `password_hash`.
+- [ ] `GET /api/users` no devuelve `password` en ninguna fila.
+- [ ] `POST /api/users` no devuelve `password`.
 - [ ] Ningún `console.log` imprime la contraseña ni el hash.
-- [ ] Si el body trae `password_hash`, responde `400` (lo bloquea `noUnknown`).
-- [ ] En la base, la columna `password_hash` no contiene texto legible.
+- [ ] Si el body trae `password_hash` (una clave que no existe en el contrato), responde `400`.
+- [ ] En la base, la columna `password` no contiene texto legible.
 - [ ] Un login con email inexistente y uno con password incorrecta responden **exactamente lo mismo**.
 - [ ] `PATCH /api/users/:id` con `password` nuevo vuelve a hashear; no guarda el valor recibido.
 
 > [!TIP]
-> Verificación rápida: `SELECT email, password_hash FROM users;` tiene que mostrar algo como `$2b$12$...`. Si ves la contraseña, el paso 4 no se ejecutó.
+> Verificación rápida: `SELECT email, password FROM users;` tiene que mostrar algo como `$2b$12$...`. Si ves la contraseña, el paso 4 no se ejecutó.
 
 #### Parte 2: roles
 
@@ -2208,11 +2322,12 @@ CREATE TABLE users (
 > [!NOTE]
 > El ENUM nativo es de PostgreSQL; en otros motores Sequelize lo emula con un `CHECK`. Agregar un valor después pide `ALTER TYPE user_role ADD VALUE 'ROLE_X'`; **quitar** un valor no se puede: hay que crear el tipo de nuevo y migrar la columna.
 
-**2. El modelo con `DataTypes.ENUM`**
+**2. El modelo**
 
 ```javascript
 role: {
-  type: DataTypes.ENUM("ROLE_USER", "ROLE_ADMIN"),
+  // "user_role" es el tipo nativo creado en el paso 1.
+  type: "user_role",
   allowNull: false,
   defaultValue: "ROLE_USER",
   validate: {
@@ -2221,19 +2336,19 @@ role: {
 },
 ```
 
-| Capa                        | Cuándo rechaza                                              | Qué devuelve                       |
-| --------------------------- | ----------------------------------------------------------- | ---------------------------------- |
-| Yup (`.oneOf()`)            | Antes del controller                                        | `400` con `details`                |
-| Sequelize (`ENUM` + `isIn`) | En `validate()`, `create` o `update`                        | `SequelizeValidationError` → `400` |
-| PostgreSQL (`user_role`)    | En cualquier `INSERT`/`UPDATE` que saltee las capas previas | `SequelizeDatabaseError` (`22P02`) → `500` |
+| Capa                      | Cuándo rechaza                                              | Qué devuelve                       |
+| ------------------------- | ----------------------------------------------------------- | ---------------------------------- |
+| Yup (`.oneOf()`)          | Antes del controller                                        | `400` con `details`                |
+| Sequelize (tipo + `isIn`) | En `create` o `update`                                      | `SequelizeValidationError` → `400` |
+| PostgreSQL (`user_role`)  | En cualquier `INSERT`/`UPDATE` que saltee las capas previas | `SequelizeDatabaseError` (`22P02`) → `500` |
 
-Tres barreras, tres momentos. La de la base es la única que no se puede saltear con un script.
+Tres barreras, tres momentos. La de la base es la única que no se puede saltear con un script. El `isIn` es el que produce el `400`: sin él, un rol inválido que esquive a Yup llega a PostgreSQL y explota como `500`.
 
 > [!IMPORTANT]
-> `DataTypes.ENUM` **solo declara** los valores permitidos: en Sequelize 6 no valida el string antes de mandarlo. Verificado: `User.create({ role: "ADMIN" })` llega a PostgreSQL y explota con `22P02`, no con `SequelizeValidationError`. Ese es el motivo del `isIn`: convierte el error de la base en un `400` con mensaje claro. Sin `isIn`, un rol inválido que esquive a Yup termina en `500`.
+> **¿Por qué `type: "user_role"` y no `DataTypes.ENUM`?** Porque el tipo lo creaste vos, con ese nombre. `DataTypes.ENUM` hace que Sequelize derive su propio nombre (`enum_users_role`) y, al sincronizar, intente `ALTER COLUMN role TYPE enum_users_role`. PostgreSQL lo rechaza: `cannot cast type user_role to enum_users_role` (verificado). Son dos caminos incompatibles: o el tipo lo crea tu DDL y el modelo lo declara como string, o lo crea Sequelize con `DataTypes.ENUM` y no lo creás a mano.
 
 > [!NOTE]
-> Los valores tienen que coincidir **exactamente** entre el `CREATE TYPE`, el `DataTypes.ENUM` y el `.oneOf()`. `ROLE_USER` no es `role_user` ni `user`. Si difieren, el error aparece recién al insertar.
+> Los valores tienen que coincidir **exactamente** entre el `CREATE TYPE`, el `type` del modelo y el `.oneOf()`. `ROLE_USER` no es `role_user` ni `user`. Si difieren, el error aparece recién al insertar.
 
 **3. El DTO con `.oneOf()`**
 
@@ -2379,7 +2494,8 @@ export function toUserResponse(user) {
 - 📘 [Sequelize 6 — Validations & Constraints](https://sequelize.org/docs/v6/core-concepts/validations-and-constraints/)
 - 📘 [Express 5 — Error Handling](https://expressjs.com/en/guide/error-handling.html)
 - 📘 [Yup — README](https://github.com/jquense/yup)
-- 📘 [Martin Fowler — Data Transfer Object](https://martinfowler.com/eaaCatalog/dataTransferObject.html)
+- 📘 [Microsoft — Create Data Transfer Objects (DTOs)](https://learn.microsoft.com/en-us/aspnet/web-api/overview/data/using-web-api-with-entity-framework/part-5)
+- 📘 [Microsoft — Data Transfer Object (pattern)](https://learn.microsoft.com/en-us/previous-versions/msp-n-p/ff649585(v=pandp.10))
 - 📘 [The Twelve-Factor App — Config](https://12factor.net/config)
 
 ## Mentor
